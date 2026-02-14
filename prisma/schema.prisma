@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model FraudCategory {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique @db.VarChar(50)
+  colorCode     String?  @default("#CCCCCC") @map("color_code") @db.VarChar(7)
+  displayOrder  Int?     @default(0) @map("display_order")
+  isActive      Boolean? @default(true) @map("is_active")
+  reports       Report[]
+
+  @@map("fraud_categories")
+}
+
+model Platform {
+  id       Int      @id @default(autoincrement())
+  name     String   @unique @db.VarChar(50)
+  iconUrl  String?  @map("icon_url") @db.VarChar(255)
+  isActive Boolean? @default(true) @map("is_active")
+  reports  Report[]
+
+  @@map("platforms")
+}
+
+model ReportStatus {
+  id         Int      @id @default(autoincrement())
+  statusCode String   @unique @map("status_code") @db.VarChar(20)
+  label      String   @db.VarChar(50)
+  badgeColor String?  @default("gray") @map("badge_color") @db.VarChar(20)
+  reports    Report[]
+
+  @@map("report_statuses")
+}
+
+model User {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  phoneHash        String    @unique @map("phone_hash") @db.VarChar(255)
+  phoneVerifiedAt  DateTime? @map("phone_verified_at") @db.Timestamptz
+  createdAt        DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz
+  reports          Report[]
+
+  @@map("users")
+}
+
+model Admin {
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email          String         @unique @db.VarChar(255)
+  passwordHash   String         @map("password_hash") @db.VarChar(255)
+  name           String?        @db.VarChar(100)
+  role           String?        @default("MODERATOR") @db.VarChar(20)
+  createdAt      DateTime?      @default(now()) @map("created_at") @db.Timestamptz
+  timelines      ReportTimeline[]
+  announcements  Announcement[]
+  banners        Banner[]
+
+  @@map("admins")
+}
+
+model Report {
+  id                        String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                    String?          @map("user_id") @db.Uuid
+  url                       String
+  title                     String?          @db.VarChar(255)
+  description               String?
+  platformId                Int?             @map("platform_id")
+  categoryId                Int?             @map("category_id")
+  statusId                  Int?             @map("status_id")
+  riskScore                 Int?             @default(0) @map("risk_score")
+  viewCount                 Int?             @default(0) @map("view_count")
+  reportCount               Int?             @default(1) @map("report_count")
+  sourceIp                  String?          @map("source_ip") @db.Inet
+  privacyPolicyAgreedAt   DateTime        @default(now()) @map("privacy_policy_agreed_at") @db.Timestamptz
+  createdAt                 DateTime?        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                 DateTime?        @default(now()) @map("updated_at") @db.Timestamptz
+
+  user                      User?            @relation(fields: [userId], references: [id])
+  platform                 Platform?        @relation(fields: [platformId], references: [id])
+  category                 FraudCategory?   @relation(fields: [categoryId], references: [id])
+  status                   ReportStatus?    @relation(fields: [statusId], references: [id])
+  images                    ReportImage[]
+  timelines                 ReportTimeline[]
+
+  @@map("reports")
+  @@index([url])
+  @@index([createdAt(sort: Desc)])
+  @@index([viewCount(sort: Desc)])
+}
+
+model ReportImage {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reportId     String   @map("report_id") @db.Uuid
+  imageUrl     String   @map("image_url")
+  displayOrder Int?     @default(0) @map("display_order")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz
+
+  report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@map("report_images")
+}
+
+model ReportTimeline {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reportId    String    @map("report_id") @db.Uuid
+  actionLabel String    @map("action_label") @db.VarChar(100)
+  description String?
+  createdBy   String?   @map("created_by") @db.Uuid
+  occurredAt  DateTime? @default(now()) @map("occurred_at") @db.Timestamptz
+
+  report      Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  admin       Admin?    @relation(fields: [createdBy], references: [id])
+
+  @@map("report_timelines")
+  @@index([reportId, occurredAt(sort: Desc)])
+}
+
+model Announcement {
+  id            String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title         String                  @db.VarChar(255)
+  content       String
+  thumbnailUrl  String?                 @map("thumbnail_url") @db.VarChar(255)
+  isImportant   Boolean?                @default(false) @map("is_important")
+  isPublished   Boolean?                @default(false) @map("is_published")
+  publishedAt   DateTime?               @map("published_at") @db.Timestamptz
+  createdBy     String?                 @map("created_by") @db.Uuid
+  createdAt     DateTime?               @default(now()) @map("created_at") @db.Timestamptz
+  admin         Admin?                  @relation(fields: [createdBy], references: [id])
+  tags          AnnouncementTagRelation[]
+
+  @@map("announcements")
+  @@index([isPublished, publishedAt(sort: Desc)])
+}
+
+model AnnouncementTag {
+  id           Int                       @id @default(autoincrement())
+  name         String                    @unique @db.VarChar(50)
+  announcements AnnouncementTagRelation[]
+
+  @@map("announcement_tags")
+}
+
+model AnnouncementTagRelation {
+  announcementId String       @map("announcement_id") @db.Uuid
+  tagId          Int          @map("tag_id")
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  tag            AnnouncementTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, tagId])
+  @@map("announcement_tag_relations")
+}
+
+model Banner {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title         String    @db.VarChar(255)
+  message       String
+  linkUrl       String?   @map("link_url")
+  bgColor       String?   @default("#FFF3CD") @map("bg_color") @db.VarChar(20)
+  textColor     String?   @default("#664D03") @map("text_color") @db.VarChar(20)
+  isActive      Boolean?  @default(true) @map("is_active")
+  displayOrder  Int?      @default(0) @map("display_order")
+  startsAt      DateTime? @map("starts_at") @db.Timestamptz
+  endsAt        DateTime? @map("ends_at") @db.Timestamptz
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.Timestamptz
+  admin         Admin?    @relation(fields: [createdBy], references: [id])
+
+  @@map("banners")
+  @@index([isActive, startsAt, endsAt, displayOrder])
+}
+
+model DailyStatistics {
+  date                DateTime @id @db.Date
+  totalReports        Int?      @default(0) @map("total_reports")
+  highRiskCount       Int?      @default(0) @map("high_risk_count")
+  confirmedFraudCount Int?      @default(0) @map("confirmed_fraud_count")
+  platformStats       Json     @map("platform_stats")
+  categoryStats       Json     @map("category_stats")
+  statusStats         Json     @map("status_stats")
+  createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("daily_statistics")
+}
