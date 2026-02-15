@@ -89,7 +89,7 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 		<Link href={`/reports/${report.id}`} className="block h-full">
 			<Card className="group h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
 				<CardContent className="flex h-full flex-col gap-4 p-5">
-					<div className="aspect-[16/9] w-full overflow-hidden rounded-xl bg-muted/70">
+					<div className="aspect-video w-full overflow-hidden rounded-xl bg-muted/70">
 						<div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
 							<ShieldAlert className="h-5 w-5" />
 							<span className="text-xs">通報画像</span>
@@ -216,7 +216,7 @@ export function HomeReportsGrid() {
 					{Array.from({ length: 6 }).map((_, index) => (
 						<Card key={`skeleton-${index}`}>
 							<CardContent className="space-y-4 p-5">
-								<Skeleton className="aspect-[16/9] w-full rounded-xl" />
+								<Skeleton className="aspect-video w-full rounded-xl" />
 								<Skeleton className="h-5 w-2/3" />
 								<Skeleton className="h-4 w-full" />
 								<Skeleton className="h-4 w-5/6" />

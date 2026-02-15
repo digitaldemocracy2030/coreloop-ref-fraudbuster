@@ -4,7 +4,6 @@ import Link from "next/link";
 import { HomeReportsGrid } from "@/components/home-reports-grid";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 export default async function Home() {
 	// In a real app, these would be fetched from the API
@@ -17,20 +16,13 @@ export default async function Home() {
 			<section className="relative overflow-hidden bg-primary/5 py-20 lg:py-32">
 				<div className="container relative z-10 grid gap-10 lg:grid-cols-2 lg:items-center">
 					<div className="space-y-6 text-center lg:text-left">
-						<Badge
-							variant="outline"
-							className="px-4 py-1 border-primary/20 bg-primary/5 text-primary"
-						>
-							ネット詐欺から身を守る
-						</Badge>
 						<h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-foreground">
-							あやしいURLやアカウントを
+							あやしいオンライン広告を
 							<br className="hidden sm:block" />
-							<span className="text-primary italic">検索・通報</span>
+							<span className="text-primary italic">通報</span>
 						</h1>
 						<p className="text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0">
 							SNSやメッセージアプリの詐欺情報をクラウドソーシングで集めています。
-							被害に遭う前に、情報をチェックしましょう。
 						</p>
 						<div className="flex flex-wrap justify-center lg:justify-start gap-3">
 							<Link href="/report/new">
@@ -62,7 +54,7 @@ export default async function Home() {
 					<div className="space-y-1">
 						<h2 className="text-2xl font-bold tracking-tight">最新の通報</h2>
 						<p className="text-sm text-muted-foreground">
-							通報内容をカード形式で表示しています。下へスクロールすると自動で読み込みます。
+							下へスクロールすると自動で読み込みます。
 						</p>
 					</div>
 					<Link
