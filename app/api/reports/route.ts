@@ -1,10 +1,26 @@
 import { type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type {
+	ReportsListResponse,
+	ReportSortOrder,
+	ReportSummary,
+} from "@/lib/types/api";
 import {
 	successResponse,
 	errorResponse,
 	badRequestResponse,
 } from "@/lib/api-utils";
+
+function parseOptionalInteger(value: string | null): number | undefined {
+	if (!value) return undefined;
+	const parsed = Number.parseInt(value, 10);
+	if (Number.isNaN(parsed) || parsed <= 0) return undefined;
+	return parsed;
+}
+
+function parseSortOrder(value: string | null): ReportSortOrder {
+	return value === "popular" ? "popular" : "newest";
+}
 
 /**
  * GET /api/reports
@@ -13,18 +29,12 @@ import {
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
-		const query = searchParams.get("q") || undefined;
+		const query = searchParams.get("q")?.trim() || undefined;
 		const cursor = searchParams.get("cursor") || undefined;
-		const platformId = searchParams.get("platformId")
-			? Number.parseInt(searchParams.get("platformId")!)
-			: undefined;
-		const categoryId = searchParams.get("categoryId")
-			? Number.parseInt(searchParams.get("categoryId")!)
-			: undefined;
-		const statusId = searchParams.get("statusId")
-			? Number.parseInt(searchParams.get("statusId")!)
-			: undefined;
-		const sort = searchParams.get("sort") || "newest";
+		const platformId = parseOptionalInteger(searchParams.get("platformId"));
+		const categoryId = parseOptionalInteger(searchParams.get("categoryId"));
+		const statusId = parseOptionalInteger(searchParams.get("statusId"));
+		const sort = parseSortOrder(searchParams.get("sort"));
 		const limitParam = searchParams.get("limit");
 		const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : 12;
 		const take = Number.isNaN(parsedLimit)
@@ -58,11 +68,37 @@ export async function GET(request: NextRequest) {
 					statusId ? { statusId } : {},
 				],
 			},
-			include: {
-				platform: true,
-				category: true,
-				status: true,
+			select: {
+				id: true,
+				url: true,
+				title: true,
+				description: true,
+				createdAt: true,
+				viewCount: true,
+				riskScore: true,
+				platform: {
+					select: {
+						id: true,
+						name: true,
+					},
+				},
+				category: {
+					select: {
+						id: true,
+						name: true,
+					},
+				},
+				status: {
+					select: {
+						id: true,
+						label: true,
+					},
+				},
 				images: {
+					select: {
+						id: true,
+						imageUrl: true,
+					},
 					take: 1,
 					orderBy: { displayOrder: "asc" as const },
 				},
@@ -81,10 +117,17 @@ export async function GET(request: NextRequest) {
 		const items = hasMore ? reports.slice(0, take) : reports;
 		const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
 
-		return successResponse({
-			items,
+		const response: ReportsListResponse = {
+			items: items.map(
+				(report): ReportSummary => ({
+					...report,
+					createdAt: report.createdAt?.toISOString() ?? null,
+				}),
+			),
 			nextCursor,
-		});
+		};
+
+		return successResponse(response);
 	} catch (error) {
 		console.error("Failed to fetch reports:", error);
 		return errorResponse("Internal Server Error");

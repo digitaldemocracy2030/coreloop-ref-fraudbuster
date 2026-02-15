@@ -1,95 +1,187 @@
-import { type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { successResponse, errorResponse } from "@/lib/api-utils";
+import type {
+	StatisticsBreakdownItem,
+	StatisticsResponse,
+	StatisticsTrendItem,
+} from "@/lib/types/api";
+import { errorResponse, successResponse } from "@/lib/api-utils";
+
+const DEFAULT_DAYS = 7;
+const MAX_DAYS = 90;
+
+function parseDays(value: string | null): number {
+	if (!value) return DEFAULT_DAYS;
+	const parsed = Number.parseInt(value, 10);
+	if (Number.isNaN(parsed)) return DEFAULT_DAYS;
+	return Math.min(Math.max(parsed, 1), MAX_DAYS);
+}
+
+function formatTrendDate(date: Date): string {
+	const month = `${date.getMonth() + 1}`.padStart(2, "0");
+	const day = `${date.getDate()}`.padStart(2, "0");
+	return `${month}.${day}`;
+}
+
+function toDateKey(date: Date): string {
+	const normalized = new Date(date);
+	normalized.setHours(0, 0, 0, 0);
+	return normalized.toISOString().slice(0, 10);
+}
 
 /**
  * GET /api/statistics
  * Get aggregated statistics for the dashboard
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
 	try {
 		const { searchParams } = new URL(request.url);
-		const days = searchParams.get("days")
-			? Number.parseInt(searchParams.get("days")!)
-			: 30;
+		const days = parseDays(searchParams.get("days"));
 
-		const startDate = new Date();
-		startDate.setDate(startDate.getDate() - days);
+		const now = new Date();
+		const startDate = new Date(now);
+		startDate.setDate(startDate.getDate() - (days - 1));
+		startDate.setHours(0, 0, 0, 0);
 
-		// Try to fetch from daily_statistics if available
-		const dailyStats = await prisma.dailyStatistics.findMany({
-			where: {
-				date: {
-					gte: startDate,
+		const todayStart = new Date(now);
+		todayStart.setHours(0, 0, 0, 0);
+
+		const [
+			totalReports,
+			highRiskReports,
+			todayReports,
+			statusStatsRaw,
+			categoryStatsRaw,
+			platformStatsRaw,
+			statuses,
+			categories,
+			platforms,
+			trendReports,
+		] = await Promise.all([
+			prisma.report.count(),
+			prisma.report.count({
+				where: { riskScore: { gte: 80 } },
+			}),
+			prisma.report.count({
+				where: {
+					createdAt: { gte: todayStart },
 				},
-			},
-			orderBy: { date: "asc" as const },
-		});
-
-		if (dailyStats.length > 0) {
-			return successResponse(dailyStats);
-		}
-
-		// Fallback: Real-time aggregation (simplified for demo/reference)
-		// in a real app, this should be pre-calculated or cached
-		const totalReports = await prisma.report.count();
-		const statusStats = await prisma.report.groupBy({
-			by: ["statusId"],
-			_count: { _all: true },
-		});
-
-		const categoryStats = await prisma.report.groupBy({
-			by: ["categoryId"],
-			_count: { _all: true },
-		});
-
-		const platformStats = await prisma.report.groupBy({
-			by: ["platformId"],
-			_count: { _all: true },
-		});
-
-		// Fetch status/category/platform labels for the fallback response
-		const [statuses, categories, platforms] = await Promise.all([
-			prisma.reportStatus.findMany(),
-			prisma.fraudCategory.findMany(),
-			prisma.platform.findMany(),
+			}),
+			prisma.report.groupBy({
+				by: ["statusId"],
+				_count: { _all: true },
+			}),
+			prisma.report.groupBy({
+				by: ["categoryId"],
+				_count: { _all: true },
+			}),
+			prisma.report.groupBy({
+				by: ["platformId"],
+				_count: { _all: true },
+			}),
+			prisma.reportStatus.findMany({
+				select: { id: true, label: true },
+			}),
+			prisma.fraudCategory.findMany({
+				select: { id: true, name: true },
+			}),
+			prisma.platform.findMany({
+				select: { id: true, name: true },
+			}),
+			prisma.report.findMany({
+				where: {
+					createdAt: { gte: startDate },
+				},
+				select: {
+					createdAt: true,
+				},
+			}),
 		]);
 
-		return successResponse({
+		const statusLabelMap = new Map(
+			statuses.map((item) => [item.id, item.label]),
+		);
+		const categoryLabelMap = new Map(
+			categories.map((item) => [item.id, item.name]),
+		);
+		const platformLabelMap = new Map(
+			platforms.map((item) => [item.id, item.name]),
+		);
+
+		const status: StatisticsBreakdownItem[] = statusStatsRaw.map((item) => ({
+			id: item.statusId,
+			label:
+				item.statusId === null
+					? "未設定"
+					: (statusLabelMap.get(item.statusId) ?? "Unknown"),
+			count: item._count._all,
+		}));
+
+		const category: StatisticsBreakdownItem[] = categoryStatsRaw.map(
+			(item) => ({
+				id: item.categoryId,
+				label:
+					item.categoryId === null
+						? "未設定"
+						: (categoryLabelMap.get(item.categoryId) ?? "Unknown"),
+				count: item._count._all,
+			}),
+		);
+
+		const platform: StatisticsBreakdownItem[] = platformStatsRaw.map(
+			(item) => ({
+				id: item.platformId,
+				label:
+					item.platformId === null
+						? "未設定"
+						: (platformLabelMap.get(item.platformId) ?? "Unknown"),
+				count: item._count._all,
+			}),
+		);
+
+		const topPlatform =
+			platform
+				.slice()
+				.sort((a, b) => b.count - a.count)
+				.find((item) => item.id !== null)?.label ?? null;
+
+		const trendCountMap = new Map<string, number>();
+		for (let i = 0; i < days; i += 1) {
+			const bucketDate = new Date(startDate);
+			bucketDate.setDate(startDate.getDate() + i);
+			trendCountMap.set(toDateKey(bucketDate), 0);
+		}
+
+		for (const report of trendReports) {
+			if (!report.createdAt) continue;
+			const dateKey = toDateKey(report.createdAt);
+			if (!trendCountMap.has(dateKey)) continue;
+			trendCountMap.set(dateKey, (trendCountMap.get(dateKey) ?? 0) + 1);
+		}
+
+		const trend: StatisticsTrendItem[] = Array.from(
+			trendCountMap.entries(),
+		).map(([dateKey, count]) => ({
+			date: formatTrendDate(new Date(dateKey)),
+			count,
+		}));
+
+		const response: StatisticsResponse = {
 			summary: {
 				totalReports,
-				// ... other summary fields
+				highRiskReports,
+				todayReports,
+				topPlatform,
 			},
 			breakdown: {
-				status: statusStats.map(
-					(s: { statusId: number | null; _count: { _all: number } }) => ({
-						...s,
-						label:
-							statuses.find(
-								(st: { id: number; label: string }) => st.id === s.statusId,
-							)?.label || "Unknown",
-					}),
-				),
-				category: categoryStats.map(
-					(c: { categoryId: number | null; _count: { _all: number } }) => ({
-						...c,
-						label:
-							categories.find(
-								(ca: { id: number; name: string }) => ca.id === c.categoryId,
-							)?.name || "Unknown",
-					}),
-				),
-				platform: platformStats.map(
-					(p: { platformId: number | null; _count: { _all: number } }) => ({
-						...p,
-						label:
-							platforms.find(
-								(pl: { id: number; name: string }) => pl.id === p.platformId,
-							)?.name || "Unknown",
-					}),
-				),
+				status,
+				category,
+				platform,
 			},
-		});
+			trend,
+			updatedAt: now.toISOString(),
+		};
+
+		return successResponse(response);
 	} catch (error) {
 		console.error("Failed to fetch statistics:", error);
 		return errorResponse("Internal Server Error");

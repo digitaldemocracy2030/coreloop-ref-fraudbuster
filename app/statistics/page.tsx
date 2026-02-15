@@ -2,42 +2,43 @@
 
 import * as React from "react";
 import {
-	TrendingUp,
-	TrendingDown,
-	AlertTriangle,
 	Activity,
-	Calendar,
-	PieChart as PieChartIcon,
+	AlertTriangle,
 	BarChart3,
+	PieChart as PieChartIcon,
+	TrendingUp,
 } from "lucide-react";
 import {
-	LineChart,
+	Bar,
+	BarChart,
+	CartesianGrid,
+	Cell,
+	Legend,
 	Line,
+	LineChart,
+	Pie,
+	PieChart,
+	ResponsiveContainer,
+	Tooltip,
 	XAxis,
 	YAxis,
-	CartesianGrid,
-	Tooltip,
-	ResponsiveContainer,
-	PieChart,
-	Pie,
-	Cell,
-	BarChart,
-	Bar,
-	Legend,
 } from "recharts";
 
+import type {
+	StatisticsBreakdownItem,
+	StatisticsResponse,
+} from "@/lib/types/api";
+import { Badge } from "@/components/ui/badge";
 import {
 	Card,
 	CardContent,
+	CardDescription,
 	CardHeader,
 	CardTitle,
-	CardDescription,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Mock data for initial render or fallback
-const MOCK_TIME_DATA = [
+const FALLBACK_TREND_DATA = [
 	{ date: "02.08", count: 42 },
 	{ date: "02.09", count: 56 },
 	{ date: "02.10", count: 48 },
@@ -47,7 +48,7 @@ const MOCK_TIME_DATA = [
 	{ date: "02.14", count: 94 },
 ];
 
-const COLORS = [
+const CHART_COLORS = [
 	"oklch(0.55 0.2 250)",
 	"oklch(0.7 0.15 180)",
 	"oklch(0.8 0.12 60)",
@@ -55,24 +56,63 @@ const COLORS = [
 	"oklch(0.5 0.25 0)",
 ];
 
+function ChartTooltipStyle() {
+	return {
+		backgroundColor: "var(--card)",
+		borderRadius: "var(--radius)",
+		border: "1px solid var(--border)",
+	};
+}
+
 export default function StatisticsPage() {
-	const [stats, setStats] = React.useState<any>(null);
+	const [stats, setStats] = React.useState<StatisticsResponse | null>(null);
 	const [loading, setLoading] = React.useState(true);
+	const [hasError, setHasError] = React.useState(false);
 
 	React.useEffect(() => {
+		const controller = new AbortController();
+
 		async function fetchStats() {
 			try {
-				const res = await fetch("/api/statistics");
-				const data = await res.json();
+				const res = await fetch("/api/statistics?days=7", {
+					cache: "no-store",
+					signal: controller.signal,
+				});
+				if (!res.ok) {
+					throw new Error(`Failed to fetch statistics: ${res.status}`);
+				}
+
+				const data: StatisticsResponse = await res.json();
 				setStats(data);
+				setHasError(false);
 			} catch (error) {
+				if (controller.signal.aborted) return;
 				console.error("Failed to fetch statistics:", error);
+				setHasError(true);
 			} finally {
-				setLoading(false);
+				if (!controller.signal.aborted) {
+					setLoading(false);
+				}
 			}
 		}
-		fetchStats();
+
+		void fetchStats();
+		return () => controller.abort();
 	}, []);
+
+	const trendData = stats?.trend.length ? stats.trend : FALLBACK_TREND_DATA;
+	const categoryData: StatisticsBreakdownItem[] =
+		stats?.breakdown.category ?? [];
+	const platformData: StatisticsBreakdownItem[] =
+		stats?.breakdown.platform ?? [];
+	const statusData: StatisticsBreakdownItem[] = stats?.breakdown.status ?? [];
+
+	const updatedAtLabel = React.useMemo(() => {
+		if (!stats?.updatedAt) return "データ未取得";
+		const date = new Date(stats.updatedAt);
+		if (Number.isNaN(date.getTime())) return "データ未取得";
+		return date.toLocaleString("ja-JP");
+	}, [stats?.updatedAt]);
 
 	if (loading) {
 		return (
@@ -81,7 +121,7 @@ export default function StatisticsPage() {
 					<Skeleton className="h-10 w-48" />
 					<Skeleton className="h-4 w-96" />
 				</div>
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+				<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
 					{[1, 2, 3].map((i) => (
 						<Skeleton key={i} className="h-32 w-full rounded-2xl" />
 					))}
@@ -93,7 +133,6 @@ export default function StatisticsPage() {
 
 	return (
 		<div className="container py-12 space-y-12">
-			{/* Header */}
 			<div className="space-y-2">
 				<h1 className="text-3xl font-bold tracking-tight">詐欺トレンド統計</h1>
 				<p className="text-muted-foreground">
@@ -101,58 +140,65 @@ export default function StatisticsPage() {
 				</p>
 			</div>
 
-			{/* Summary Grid */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+			{hasError ? (
+				<Card className="border-destructive/30 bg-destructive/5">
+					<CardContent className="py-6 text-sm text-destructive">
+						統計データの取得に失敗しました。時間をおいて再度お試しください。
+					</CardContent>
+				</Card>
+			) : null}
+
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-3">
 				<Card className="border-primary/10 bg-primary/5">
 					<CardHeader className="pb-2">
-						<CardDescription className="text-xs uppercase tracking-wider font-bold">
+						<CardDescription className="text-xs font-bold tracking-wider uppercase">
 							累計通報件数
 						</CardDescription>
 						<CardTitle className="text-3xl font-black">
-							{stats?.summary?.totalReports?.toLocaleString() || "1,248"}
+							{stats?.summary.totalReports.toLocaleString() ?? "0"}
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="flex items-center gap-1 text-xs text-primary font-bold">
+						<div className="flex items-center gap-1 text-xs font-bold text-primary">
 							<TrendingUp className="h-3 w-3" />
-							<span>先月比 +12%</span>
+							<span>直近7日を表示中</span>
 						</div>
 					</CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardDescription className="text-xs uppercase tracking-wider font-bold">
+						<CardDescription className="text-xs font-bold tracking-wider uppercase">
 							本日の通報数
 						</CardDescription>
-						<CardTitle className="text-3xl font-black">+24</CardTitle>
+						<CardTitle className="text-3xl font-black">
+							{stats?.summary.todayReports ?? 0}
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<div className="flex items-center gap-1 text-xs text-muted-foreground">
-							<span>平均 18.5件/日</span>
+							<span>高リスク件数: {stats?.summary.highRiskReports ?? 0}</span>
 						</div>
 					</CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardDescription className="text-xs uppercase tracking-wider font-bold">
+						<CardDescription className="text-xs font-bold tracking-wider uppercase">
 							要注意プラットフォーム
 						</CardDescription>
 						<CardTitle className="text-3xl font-black text-destructive">
-							Instagram
+							{stats?.summary.topPlatform ?? "データなし"}
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="flex items-center gap-1 text-xs text-destructive font-bold">
+						<div className="flex items-center gap-1 text-xs font-bold text-destructive">
 							<AlertTriangle className="h-3 w-3" />
-							<span>なりすましが急増中</span>
+							<span>通報データから自動算出</span>
 						</div>
 					</CardContent>
 				</Card>
 			</div>
 
-			{/* Main Charts */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-				{/* Time Series */}
+			<div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
 				<Card className="lg:col-span-2">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
@@ -163,7 +209,7 @@ export default function StatisticsPage() {
 					</CardHeader>
 					<CardContent className="h-[350px]">
 						<ResponsiveContainer width="100%" height="100%">
-							<LineChart data={MOCK_TIME_DATA}>
+							<LineChart data={trendData}>
 								<CartesianGrid
 									strokeDasharray="3 3"
 									vertical={false}
@@ -183,11 +229,7 @@ export default function StatisticsPage() {
 									axisLine={false}
 								/>
 								<Tooltip
-									contentStyle={{
-										backgroundColor: "var(--card)",
-										borderRadius: "var(--radius)",
-										border: "1px solid var(--border)",
-									}}
+									contentStyle={ChartTooltipStyle()}
 									itemStyle={{ color: "var(--primary)" }}
 								/>
 								<Line
@@ -208,7 +250,6 @@ export default function StatisticsPage() {
 					</CardContent>
 				</Card>
 
-				{/* Breakdown: Category */}
 				<Card>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
@@ -220,38 +261,29 @@ export default function StatisticsPage() {
 						<ResponsiveContainer width="100%" height="100%">
 							<PieChart>
 								<Pie
-									data={stats?.breakdown?.category || []}
+									data={categoryData}
 									cx="50%"
 									cy="50%"
 									innerRadius={60}
 									outerRadius={100}
 									paddingAngle={5}
-									dataKey="_count._all"
+									dataKey="count"
 									nameKey="label"
 								>
-									{(stats?.breakdown?.category || []).map(
-										(entry: any, index: number) => (
-											<Cell
-												key={`cell-${index}`}
-												fill={COLORS[index % COLORS.length]}
-											/>
-										),
-									)}
+									{categoryData.map((entry, index) => (
+										<Cell
+											key={`${entry.label}-${entry.id ?? index}`}
+											fill={CHART_COLORS[index % CHART_COLORS.length]}
+										/>
+									))}
 								</Pie>
-								<Tooltip
-									contentStyle={{
-										backgroundColor: "var(--card)",
-										borderRadius: "var(--radius)",
-										border: "1px solid var(--border)",
-									}}
-								/>
+								<Tooltip contentStyle={ChartTooltipStyle()} />
 								<Legend verticalAlign="bottom" height={36} iconType="circle" />
 							</PieChart>
 						</ResponsiveContainer>
 					</CardContent>
 				</Card>
 
-				{/* Breakdown: Platform */}
 				<Card>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
@@ -261,7 +293,7 @@ export default function StatisticsPage() {
 					</CardHeader>
 					<CardContent className="h-[300px]">
 						<ResponsiveContainer width="100%" height="100%">
-							<BarChart data={stats?.breakdown?.platform || []}>
+							<BarChart data={platformData}>
 								<CartesianGrid
 									strokeDasharray="3 3"
 									vertical={false}
@@ -281,15 +313,11 @@ export default function StatisticsPage() {
 									axisLine={false}
 								/>
 								<Tooltip
-									contentStyle={{
-										backgroundColor: "var(--card)",
-										borderRadius: "var(--radius)",
-										border: "1px solid var(--border)",
-									}}
+									contentStyle={ChartTooltipStyle()}
 									cursor={{ fill: "var(--muted)", opacity: 0.4 }}
 								/>
 								<Bar
-									dataKey="_count._all"
+									dataKey="count"
 									fill="var(--primary)"
 									radius={[4, 4, 0, 0]}
 									barSize={40}
@@ -300,21 +328,33 @@ export default function StatisticsPage() {
 				</Card>
 			</div>
 
-			<section className="bg-muted/30 rounded-3xl p-8 lg:p-12 space-y-6">
-				<div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+			<section className="space-y-6 rounded-3xl bg-muted/30 p-8 lg:p-12">
+				<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 					<div className="space-y-1">
 						<h2 className="text-2xl font-bold">データについて</h2>
-						<p className="text-muted-foreground text-sm">
-							統計情報は毎日深夜に更新されます。情報の集約により、詐欺のパターンを早期に発見することを目指しています。
+						<p className="text-sm text-muted-foreground">
+							統計情報はAPIルート経由で集計し、可視化しています。
 						</p>
 					</div>
 					<Badge
 						variant="outline"
-						className="w-fit h-fit px-4 py-2 bg-background border-primary/20"
+						className="h-fit w-fit border-primary/20 bg-background px-4 py-2"
 					>
-						最終更新: 2026.02.14 00:00:00
+						最終更新: {updatedAtLabel}
 					</Badge>
 				</div>
+				{statusData.length > 0 ? (
+					<div className="flex flex-wrap gap-2">
+						{statusData.map((item) => (
+							<Badge
+								key={`${item.label}-${item.id ?? "null"}`}
+								variant="secondary"
+							>
+								{item.label}: {item.count}
+							</Badge>
+						))}
+					</div>
+				) : null}
 			</section>
 		</div>
 	);

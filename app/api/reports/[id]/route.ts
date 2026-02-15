@@ -1,4 +1,3 @@
-import { type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
 	successResponse,
@@ -11,11 +10,11 @@ import {
  * Get detailed report information including images and timeline
  */
 export async function GET(
-	request: NextRequest,
-	{ params }: { params: Promise<{ id: string }> },
+	_request: Request,
+	ctx: RouteContext<"/api/reports/[id]">,
 ) {
 	try {
-		const { id } = await params;
+		const { id } = await ctx.params;
 
 		const report = await prisma.report.findUnique({
 			where: { id },
@@ -49,7 +48,7 @@ export async function GET(
 
 		return successResponse(report);
 	} catch (error) {
-		console.error(`Failed to fetch report ${params}:`, error);
+		console.error("Failed to fetch report details:", error);
 		return errorResponse("Internal Server Error");
 	}
 }

@@ -4,6 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { AlertTriangle, Clock3, Eye, Search, ShieldAlert } from "lucide-react";
 
+import type {
+	ReportsListResponse,
+	ReportSortOrder,
+	ReportSummary,
+} from "@/lib/types/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,40 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const PAGE_SIZE = 12;
 
-type ReportSummary = {
-	id: string;
-	url: string;
-	title: string | null;
-	description: string | null;
-	createdAt: string | null;
-	viewCount: number | null;
-	riskScore: number | null;
-	platform: {
-		id: number;
-		name: string;
-	} | null;
-	category: {
-		id: number;
-		name: string;
-	} | null;
-	status: {
-		id: number;
-		label: string;
-	} | null;
-	images: Array<{
-		id: string;
-		imageUrl: string;
-	}>;
-};
-
-type ReportsResponse = {
-	items: ReportSummary[];
-	nextCursor: string | null;
-};
-
-type SortOrder = "popular" | "newest";
-
-function normalizeResponse(payload: unknown): ReportsResponse {
+function normalizeResponse(payload: unknown): ReportsListResponse {
 	if (Array.isArray(payload)) {
 		return { items: payload as ReportSummary[], nextCursor: null };
 	}
@@ -145,7 +117,7 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 export function HomeReportsGrid() {
 	const [reports, setReports] = React.useState<ReportSummary[]>([]);
 	const [nextCursor, setNextCursor] = React.useState<string | null>(null);
-	const [sortOrder, setSortOrder] = React.useState<SortOrder>("newest");
+	const [sortOrder, setSortOrder] = React.useState<ReportSortOrder>("newest");
 	const [searchInput, setSearchInput] = React.useState("");
 	const [debouncedQuery, setDebouncedQuery] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
@@ -154,6 +126,7 @@ export function HomeReportsGrid() {
 	const sentinelRef = React.useRef<HTMLDivElement | null>(null);
 	const isFetchingRef = React.useRef(false);
 	const requestVersionRef = React.useRef(0);
+	const abortRef = React.useRef<AbortController | null>(null);
 
 	const fetchReports = React.useCallback(
 		async ({
@@ -170,6 +143,8 @@ export function HomeReportsGrid() {
 			setIsLoading(true);
 
 			try {
+				const controller = new AbortController();
+				abortRef.current = controller;
 				const params = new URLSearchParams({
 					sort: sortOrder,
 					limit: String(PAGE_SIZE),
@@ -183,6 +158,7 @@ export function HomeReportsGrid() {
 
 				const response = await fetch(`/api/reports?${params.toString()}`, {
 					cache: "no-store",
+					signal: controller.signal,
 				});
 
 				if (!response.ok) {
@@ -199,6 +175,9 @@ export function HomeReportsGrid() {
 				setErrorMessage(null);
 			} catch (error) {
 				if (version !== requestVersionRef.current) return;
+				if (error instanceof DOMException && error.name === "AbortError") {
+					return;
+				}
 
 				console.error(error);
 				setErrorMessage("通報データの取得に失敗しました。");
@@ -216,6 +195,7 @@ export function HomeReportsGrid() {
 	const loadFirstPage = React.useCallback(() => {
 		const version = requestVersionRef.current + 1;
 		requestVersionRef.current = version;
+		abortRef.current?.abort();
 		isFetchingRef.current = false;
 		setReports([]);
 		setNextCursor(null);
@@ -240,6 +220,12 @@ export function HomeReportsGrid() {
 	React.useEffect(() => {
 		loadFirstPage();
 	}, [loadFirstPage]);
+
+	React.useEffect(() => {
+		return () => {
+			abortRef.current?.abort();
+		};
+	}, []);
 
 	React.useEffect(() => {
 		const target = sentinelRef.current;

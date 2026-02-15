@@ -7,8 +7,6 @@ import {
 	AlertTriangle,
 	ExternalLink,
 	CheckCircle2,
-	Search,
-	MapPin,
 	Calendar,
 } from "lucide-react";
 import Link from "next/link";
