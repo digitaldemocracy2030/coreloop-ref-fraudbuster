@@ -61,6 +61,13 @@ function riskStyle(score: number | null) {
 }
 
 function ReportSummaryCard({ report }: { report: ReportSummary }) {
+	const thumbnailUrl = report.images[0]?.imageUrl ?? null;
+	const [hasThumbnailError, setHasThumbnailError] = React.useState(false);
+
+	React.useEffect(() => {
+		setHasThumbnailError(false);
+	}, [thumbnailUrl]);
+
 	return (
 		<Link
 			href={`/reports/${report.id}`}
@@ -70,10 +77,21 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 			<Card className="group h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
 				<CardContent className="flex h-full flex-col gap-4 p-5">
 					<div className="aspect-video w-full overflow-hidden rounded-xl bg-muted/70">
-						<div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
-							<ShieldAlert className="h-5 w-5" />
-							<span className="text-xs">通報画像</span>
-						</div>
+						{thumbnailUrl && !hasThumbnailError ? (
+							<img
+								src={thumbnailUrl}
+								alt={report.title || report.url}
+								loading="lazy"
+								referrerPolicy="no-referrer"
+								className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+								onError={() => setHasThumbnailError(true)}
+							/>
+						) : (
+							<div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
+								<ShieldAlert className="h-5 w-5" />
+								<span className="text-xs">サムネイルなし</span>
+							</div>
+						)}
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
