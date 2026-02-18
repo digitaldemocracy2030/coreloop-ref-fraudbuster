@@ -68,7 +68,7 @@ export function SiteIntroductionModal() {
 							次からは表示しない
 						</Label>
 					</div>
-					<Button onClick={() => setOpen(false)}>閉じる</Button>
+					<Button onClick={() => handleOpenChange(false)}>閉じる</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
