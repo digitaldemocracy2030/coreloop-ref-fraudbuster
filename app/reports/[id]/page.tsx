@@ -42,12 +42,12 @@ export default async function ReportDetailPage({
 			images: {
 				orderBy: { displayOrder: "asc" as const },
 			},
-			timelines: {
-				orderBy: { occurredAt: "desc" as const },
-				include: { admin: { select: { name: true } } },
+				timelines: {
+					orderBy: { occurredAt: "asc" as const },
+					include: { admin: { select: { name: true } } },
+				},
 			},
-		},
-	});
+		});
 
 	if (!report) {
 		notFound();
@@ -195,43 +195,60 @@ export default async function ReportDetailPage({
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="relative space-y-8 before:absolute before:inset-0 before:ml-2 before:-translate-x-px before:h-full before:w-0.5 before:bg-linear-to-b before:from-primary/50 before:via-muted before:to-transparent">
-								{report.timelines.length > 0 ? (
-									report.timelines.map((item, idx) => (
-										<div
-											key={item.id}
-											className="relative flex items-start gap-4 pl-8 group"
-										>
-											<div
-												className={`absolute left-0 mt-1.5 h-4 w-4 rounded-full border-2 border-background ring-2 ring-primary/20 ${idx === 0 ? "bg-primary" : "bg-muted"}`}
-											/>
-											<div className="space-y-1">
-												<div className="flex items-center gap-2">
-													<p className="text-sm font-bold">
-														{item.actionLabel}
-													</p>
-													<span className="text-[10px] text-muted-foreground">
-														{item.occurredAt?.toLocaleDateString("ja-JP") ||
-															"不明"}
-													</span>
+								<div className="relative space-y-8 before:absolute before:inset-0 before:ml-2 before:h-full before:w-1 before:bg-primary/40">
+									{report.timelines.length > 0 ? (
+										report.timelines.map((item, idx) => {
+											const latestIndex = report.timelines.length - 1;
+											const isLatest = idx === latestIndex;
+											const isCompleted = idx < latestIndex;
+
+											return (
+												<div
+													key={item.id}
+													className="relative flex items-start gap-4 pl-8 group"
+												>
+													<div className="absolute left-0 mt-1.5 h-4 w-4">
+														{isLatest ? (
+															<span className="absolute inset-0 rounded-full bg-primary/40 animate-ping" />
+														) : null}
+														<span
+															className={`absolute inset-0 rounded-full border-2 border-background ring-2 ${
+																isLatest
+																	? "bg-primary ring-primary/30"
+																	: isCompleted
+																		? "bg-primary/70 ring-primary/25"
+																		: "bg-muted ring-primary/20"
+															}`}
+														/>
+													</div>
+													<div className="space-y-1">
+														<div className="flex items-center gap-2">
+															<p className="text-sm font-bold">
+																{item.actionLabel}
+															</p>
+															<span className="text-[10px] text-muted-foreground">
+																{item.occurredAt?.toLocaleDateString("ja-JP") ||
+																	"不明"}
+															</span>
+														</div>
+														<p className="text-xs text-muted-foreground">
+															{item.description}
+														</p>
+														{item.admin && (
+															<Badge
+																variant="ghost"
+																className="px-0 h-auto text-[10px] font-medium text-primary"
+															>
+																確認担当: {item.admin.name}
+															</Badge>
+														)}
+													</div>
 												</div>
-												<p className="text-xs text-muted-foreground">
-													{item.description}
-												</p>
-												{item.admin && (
-													<Badge
-														variant="ghost"
-														className="px-0 h-auto text-[10px] font-medium text-primary"
-													>
-														確認担当: {item.admin.name}
-													</Badge>
-												)}
-											</div>
-										</div>
-									))
-								) : (
-									<div className="text-sm text-muted-foreground py-4 text-center">
-										タイムライン情報はまだありません。
+											);
+										})
+									) : (
+										<div className="text-sm text-muted-foreground py-4 text-center">
+											タイムライン情報はまだありません。
 									</div>
 								)}
 							</div>
