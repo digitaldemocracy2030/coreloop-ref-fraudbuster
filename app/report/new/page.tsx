@@ -2,15 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import {
 	ShieldAlert,
 	ArrowRight,
 	ArrowLeft,
 	CheckCircle2,
 	Upload,
-	Smartphone,
 	AlertCircle,
 	Lock,
+	ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,16 +35,31 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import {
-	InputOTP,
-	InputOTPGroup,
-	InputOTPSlot,
-} from "@/components/ui/input-otp";
 import { Separator } from "@/components/ui/separator";
+
+type TurnstileRenderOptions = {
+	sitekey: string;
+	callback?: (token: string) => void;
+	"expired-callback"?: () => void;
+	"error-callback"?: () => void;
+	theme?: "light" | "dark" | "auto";
+};
+
+type TurnstileApi = {
+	render: (
+		container: string | HTMLElement,
+		options: TurnstileRenderOptions,
+	) => string;
+	reset: (widgetId?: string) => void;
+	remove: (widgetId: string) => void;
+};
+
+type WindowWithTurnstile = Window & { turnstile?: TurnstileApi };
 
 type Step = "basic" | "details" | "verify" | "complete";
 
 export default function NewReportPage() {
+	const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 	const router = useRouter();
 	const [step, setStep] = React.useState<Step>("basic");
 	const [formData, setFormData] = React.useState({
@@ -52,10 +68,16 @@ export default function NewReportPage() {
 		platformId: "",
 		title: "",
 		description: "",
-		phone: "",
-		otp: "",
+		spamTrap: "",
 	});
+	const [turnstileToken, setTurnstileToken] = React.useState("");
+	const [turnstileScriptReady, setTurnstileScriptReady] = React.useState(false);
+	const [turnstileWidgetId, setTurnstileWidgetId] = React.useState<string | null>(
+		null,
+	);
 	const [loading, setLoading] = React.useState(false);
+	const formStartedAtRef = React.useRef(Date.now());
+	const turnstileContainerRef = React.useRef<HTMLDivElement | null>(null);
 
 	const progress = {
 		basic: 25,
@@ -64,11 +86,60 @@ export default function NewReportPage() {
 		complete: 100,
 	}[step];
 
-	// Mock submission
+	React.useEffect(() => {
+		if (step !== "verify") return;
+		if (!turnstileSiteKey) return;
+		if (!turnstileScriptReady) return;
+		if (turnstileWidgetId) return;
+		if (!turnstileContainerRef.current) return;
+
+		const turnstile = (window as WindowWithTurnstile).turnstile;
+		if (!turnstile) return;
+
+		const widgetId = turnstile.render(turnstileContainerRef.current, {
+			sitekey: turnstileSiteKey,
+			theme: "auto",
+			callback: (token) => setTurnstileToken(token),
+			"expired-callback": () => setTurnstileToken(""),
+			"error-callback": () => setTurnstileToken(""),
+		});
+
+		setTurnstileWidgetId(widgetId);
+	}, [step, turnstileScriptReady, turnstileSiteKey, turnstileWidgetId]);
+
+	React.useEffect(() => {
+		if (step === "verify") return;
+		if (!turnstileWidgetId) return;
+
+		const turnstile = (window as WindowWithTurnstile).turnstile;
+		if (turnstile) {
+			turnstile.remove(turnstileWidgetId);
+		}
+
+		setTurnstileWidgetId(null);
+		setTurnstileToken("");
+	}, [step, turnstileWidgetId]);
+
+	const resetTurnstile = React.useCallback(() => {
+		setTurnstileToken("");
+		if (!turnstileWidgetId) return;
+		const turnstile = (window as WindowWithTurnstile).turnstile;
+		if (!turnstile) return;
+		turnstile.reset(turnstileWidgetId);
+	}, [turnstileWidgetId]);
+
 	const handleSubmit = async () => {
+		if (!turnstileSiteKey) {
+			toast.error("Turnstileの設定が未完了です。");
+			return;
+		}
+		if (!turnstileToken) {
+			toast.error("スパム対策チェックを完了してください。");
+			return;
+		}
+
 		setLoading(true);
 		try {
-			// In a real app, this would call our POST /api/reports endpoint
 			const response = await fetch("/api/reports", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -78,15 +149,29 @@ export default function NewReportPage() {
 					description: formData.description,
 					platformId: formData.platformId,
 					categoryId: formData.categoryId,
+					formStartedAt: formStartedAtRef.current,
+					turnstileToken,
+					spamTrap: formData.spamTrap,
 				}),
 			});
 
-			if (!response.ok) throw new Error("Failed to submit");
+			if (!response.ok) {
+				const payload = (await response
+					.json()
+					.catch(() => null)) as { error?: string } | null;
+				if (response.status === 400 || response.status === 403) {
+					resetTurnstile();
+				}
+				throw new Error(payload?.error || "送信に失敗しました。");
+			}
 
 			setStep("complete");
 			toast.success("通報が完了しました。ご協力ありがとうございます。");
 		} catch (error) {
-			toast.error("送信中にエラーが発生しました。");
+			resetTurnstile();
+			toast.error(
+				error instanceof Error ? error.message : "送信中にエラーが発生しました。",
+			);
 			console.error(error);
 		} finally {
 			setLoading(false);
@@ -106,6 +191,15 @@ export default function NewReportPage() {
 
 	return (
 		<div className="container max-w-2xl py-12 space-y-8">
+			<Script
+				src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+				strategy="afterInteractive"
+				onLoad={() => setTurnstileScriptReady(true)}
+				onError={() => {
+					toast.error("Turnstileの読み込みに失敗しました。");
+				}}
+			/>
+
 			<div className="space-y-2 text-center">
 				<h1 className="text-3xl font-bold tracking-tight">広告を通報する</h1>
 				<p className="text-muted-foreground">
@@ -286,59 +380,53 @@ export default function NewReportPage() {
 				<Card className="animate-in fade-in slide-in-from-right-4 duration-500">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
-							<Smartphone className="h-5 w-5 text-primary" />
-							本人確認
+							<ShieldCheck className="h-5 w-5 text-primary" />
+							送信前チェック
 						</CardTitle>
 						<CardDescription>
-							スパム防止のため、SMSによる本人確認を行っています。
+							Cloudflare Turnstileでスパム対策を行っています。
 						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-8 py-6 text-center">
-						<div className="space-y-4">
+					<CardContent className="space-y-8 py-6">
+						<div className="space-y-4 text-center">
 							<div className="p-4 rounded-xl bg-primary/5 border border-primary/10 inline-block">
 								<Lock className="h-8 w-8 text-primary mx-auto mb-2" />
-								<p className="text-sm font-medium">電話番号による認証</p>
+								<p className="text-sm font-medium">Cloudflare Turnstile</p>
 							</div>
-							<div className="space-y-2 max-w-[240px] mx-auto">
-								<Label htmlFor="phone">携帯電話番号</Label>
-								<Input
-									id="phone"
-									placeholder="090-0000-0000"
-									className="text-center text-lg tracking-widest"
-									value={formData.phone}
-									onChange={(e) =>
-										setFormData({ ...formData, phone: e.target.value })
-									}
-								/>
-							</div>
-							<Button variant="secondary" size="sm" className="rounded-full">
-								認証コードを送信
-							</Button>
+							<p className="text-sm text-muted-foreground">
+								人間による操作かどうかを確認してから送信します。
+							</p>
 						</div>
 
 						<Separator />
 
-						<div className="space-y-4">
-							<Label>認証コードを入力</Label>
-							<div className="flex justify-center">
-								<InputOTP
-									maxLength={6}
-									value={formData.otp}
-									onChange={(v) => setFormData({ ...formData, otp: v })}
-								>
-									<InputOTPGroup>
-										<InputOTPSlot index={0} />
-										<InputOTPSlot index={1} />
-										<InputOTPSlot index={2} />
-										<InputOTPSlot index={3} />
-										<InputOTPSlot index={4} />
-										<InputOTPSlot index={5} />
-									</InputOTPGroup>
-								</InputOTP>
-							</div>
-							<p className="text-xs text-muted-foreground underline cursor-pointer">
-								コードが届かない場合はこちら
+						<div className="space-y-3">
+							{turnstileSiteKey ? (
+								<div
+									ref={turnstileContainerRef}
+									className="min-h-[70px] flex items-center justify-center"
+								/>
+							) : (
+								<p className="text-sm text-destructive">
+									環境変数 `NEXT_PUBLIC_TURNSTILE_SITE_KEY` が未設定です。
+								</p>
+							)}
+							<p className="text-xs text-muted-foreground">
+								短時間での連続投稿は引き続きサーバー側で制限されます。
 							</p>
+						</div>
+
+						<div aria-hidden="true" className="absolute -left-[9999px] top-auto">
+							<Label htmlFor="spamTrap">ウェブサイト</Label>
+							<Input
+								id="spamTrap"
+								tabIndex={-1}
+								autoComplete="off"
+								value={formData.spamTrap}
+								onChange={(e) =>
+									setFormData({ ...formData, spamTrap: e.target.value })
+								}
+							/>
 						</div>
 					</CardContent>
 					<CardFooter className="flex gap-4">
@@ -352,7 +440,7 @@ export default function NewReportPage() {
 						<Button
 							className="flex-1 h-12 rounded-xl font-bold text-lg"
 							onClick={nextStep}
-							disabled={formData.otp.length < 6 || loading}
+							disabled={loading || !turnstileSiteKey || !turnstileToken}
 						>
 							{loading ? "送信中..." : "通報を完了する"}
 						</Button>
