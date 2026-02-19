@@ -477,14 +477,24 @@ export async function POST(request: NextRequest) {
 			typeof body.description === "string" ? body.description : null;
 		const email =
 			typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-		const platformId =
+		const platformIdRaw =
 			typeof body.platformId === "string" || typeof body.platformId === "number"
-				? String(body.platformId)
-				: null;
-		const categoryId =
+				? String(body.platformId).trim()
+				: "";
+		const categoryIdRaw =
 			typeof body.categoryId === "string" || typeof body.categoryId === "number"
-				? String(body.categoryId)
-				: null;
+				? String(body.categoryId).trim()
+				: "";
+		const parsedPlatformId = platformIdRaw
+			? Number.parseInt(platformIdRaw, 10)
+			: Number.NaN;
+		const parsedCategoryId = categoryIdRaw
+			? Number.parseInt(categoryIdRaw, 10)
+			: Number.NaN;
+		const categoryId =
+			!Number.isNaN(parsedCategoryId) && parsedCategoryId > 0
+				? parsedCategoryId
+				: undefined;
 		const turnstileToken =
 			typeof body.turnstileToken === "string" ? body.turnstileToken.trim() : "";
 		const spamTrap =
@@ -499,6 +509,12 @@ export async function POST(request: NextRequest) {
 
 		if (!url) {
 			return badRequestResponse("URL is required");
+		}
+		if (!platformIdRaw) {
+			return badRequestResponse("プラットフォームは必須です");
+		}
+		if (Number.isNaN(parsedPlatformId) || parsedPlatformId <= 0) {
+			return badRequestResponse("プラットフォームの指定が不正です");
 		}
 		if (!email) {
 			return badRequestResponse("メールアドレスは必須です");
@@ -572,8 +588,8 @@ export async function POST(request: NextRequest) {
 				url,
 				title,
 				description,
-				platformId: platformId ? Number.parseInt(platformId) : undefined,
-				categoryId: categoryId ? Number.parseInt(categoryId) : undefined,
+				platformId: parsedPlatformId,
+				categoryId,
 				statusId: 1, // Default to first status (usually 'Pending' or 'Investigating')
 				riskScore: 0,
 				reportCount: 1,

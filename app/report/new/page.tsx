@@ -87,8 +87,10 @@ export default function NewReportPage() {
 		verify: 75,
 		complete: 100,
 	}[step];
+	const trimmedUrl = formData.url.trim();
 	const email = formData.email.trim().toLowerCase();
 	const isEmailValid = EMAIL_PATTERN.test(email);
+	const isBasicInfoValid = trimmedUrl.length > 0 && formData.platformId !== "";
 
 	React.useEffect(() => {
 		if (step !== "verify") return;
@@ -133,6 +135,14 @@ export default function NewReportPage() {
 	}, [turnstileWidgetId]);
 
 	const handleSubmit = async () => {
+		if (!trimmedUrl) {
+			toast.error("通報対象のURLを入力してください。");
+			return;
+		}
+		if (!formData.platformId) {
+			toast.error("プラットフォームを選択してください。");
+			return;
+		}
 		if (!email) {
 			toast.error("メールアドレスを入力してください。");
 			return;
@@ -156,7 +166,7 @@ export default function NewReportPage() {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					url: formData.url,
+					url: trimmedUrl,
 					title: formData.title,
 					description: formData.description,
 					email,
@@ -194,8 +204,17 @@ export default function NewReportPage() {
 	};
 
 	const nextStep = () => {
-		if (step === "basic") setStep("details");
-		else if (step === "details") setStep("verify");
+		if (step === "basic") {
+			if (!trimmedUrl) {
+				toast.error("通報対象のURLを入力してください。");
+				return;
+			}
+			if (!formData.platformId) {
+				toast.error("プラットフォームを選択してください。");
+				return;
+			}
+			setStep("details");
+		} else if (step === "details") setStep("verify");
 		else if (step === "verify") handleSubmit();
 	};
 
@@ -253,7 +272,12 @@ export default function NewReportPage() {
 					</CardHeader>
 					<CardContent className="space-y-6">
 						<div className="space-y-2">
-							<Label htmlFor="url">通報対象のURL (必須)</Label>
+							<Label htmlFor="url" className="flex items-center gap-1">
+								通報対象のURL
+								<span className="text-destructive" aria-hidden="true">
+									*
+								</span>
+							</Label>
 							<Input
 								id="url"
 								placeholder="https://example.com/login"
@@ -269,14 +293,19 @@ export default function NewReportPage() {
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<Label>プラットフォーム</Label>
+								<Label htmlFor="platformId" className="flex items-center gap-1">
+									プラットフォーム
+									<span className="text-destructive" aria-hidden="true">
+										*
+									</span>
+								</Label>
 								<Select
 									value={formData.platformId}
 									onValueChange={(v) =>
 										setFormData({ ...formData, platformId: v })
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger id="platformId">
 										<SelectValue placeholder="選択してください" />
 									</SelectTrigger>
 									<SelectContent>
@@ -317,7 +346,7 @@ export default function NewReportPage() {
 						<Button
 							className="w-full h-12 rounded-xl"
 							onClick={nextStep}
-							disabled={!formData.url}
+							disabled={!isBasicInfoValid}
 						>
 							次へ進む
 							<ArrowRight className="ml-2 h-4 w-4" />
@@ -427,9 +456,6 @@ export default function NewReportPage() {
 									setFormData({ ...formData, email: e.target.value })
 								}
 							/>
-							<p className="text-xs text-muted-foreground">
-								内容確認のために連絡する場合があります。
-							</p>
 						</div>
 
 						<div className="space-y-3">
@@ -509,7 +535,13 @@ export default function NewReportPage() {
 							<Button
 								variant="ghost"
 								className="w-full text-muted-foreground"
-								onClick={() => router.push("/reports")}
+								onClick={() =>
+									router.push(
+										email
+											? `/report/history?email=${encodeURIComponent(email)}`
+											: "/report/history",
+									)
+								}
 							>
 								自分の通報履歴を確認する
 							</Button>
