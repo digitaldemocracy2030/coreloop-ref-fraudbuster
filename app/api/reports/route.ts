@@ -72,10 +72,7 @@ function getClientIp(request: NextRequest): string | null {
 		if (normalized) return normalized;
 	}
 
-	return (
-		normalizeIp(request.headers.get("x-real-ip")) ??
-		normalizeIp(request.headers.get("cf-connecting-ip"))
-	);
+	return normalizeIp(request.headers.get("x-real-ip"));
 }
 
 function maybeCleanupRateLimitStore(now: number) {

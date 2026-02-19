@@ -6,4 +6,3 @@ onlyBuiltDependencies:
   - '@prisma/engines'
   - esbuild
   - prisma
-  - workerd

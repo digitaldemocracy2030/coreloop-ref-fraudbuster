@@ -2,32 +2,26 @@
 
 inspired by Fraud Buster
 
-## Cloudflare Deployment (OpenNext)
-
-### Setup
+## Local Setup
 
 ```bash
 pnpm install
-pnpm run build:cf
+pnpm dev
 ```
 
-### Local preview on Workers runtime
+## CI/CD (GitHub Actions -> Vercel)
+
+Workflow: `.github/workflows/vercel-cicd.yml`
+
+- `pull_request` to `main`: run CI (`pnpm lint`, `pnpm build`) and deploy Preview to Vercel
+- `push` to `main`: run CI and deploy Production to Vercel
+
+### Required GitHub Secrets
 
 ```bash
-pnpm run preview:cf
+VERCEL_TOKEN
+VERCEL_ORG_ID
+VERCEL_PROJECT_ID
 ```
 
-### Deploy
-
-```bash
-pnpm wrangler login
-pnpm run deploy:cf
-```
-
-### Required environment variables
-
-Set production secrets in Cloudflare Worker before deploy (for example `DATABASE_URL`):
-
-```bash
-pnpm wrangler secret put DATABASE_URL
-```
+Set runtime environment variables (e.g. `DATABASE_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`) in the Vercel Project settings.
