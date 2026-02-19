@@ -1,5 +1,5 @@
 import { TrendingUp } from "lucide-react";
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { connection } from "next/server";
 
@@ -8,58 +8,56 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 
-const getCurrentStatus = unstable_cache(
-	async () => {
-		const [totalReports, todayReports, categoryStats] = await Promise.all([
-			prisma.report.count(),
-			prisma.report.count({
-				where: {
-					createdAt: {
-						gte: new Date(new Date().setHours(0, 0, 0, 0)),
-					},
-				},
-			}),
-			prisma.fraudCategory.findMany({
-				select: {
-					name: true,
-					_count: {
-						select: { reports: true },
-					},
-				},
-				orderBy: {
-					reports: {
-						_count: "desc",
-					},
-				},
-				take: 3,
-			}),
-		]);
+async function getCurrentStatus() {
+	"use cache";
+	cacheTag("reports");
+	cacheTag("home-stats");
+	cacheLife({ revalidate: 60 });
 
-		const totalWithReports = categoryStats.reduce(
-			(acc, cat) => acc + cat._count.reports,
-			0,
-		);
+	const [totalReports, todayReports, categoryStats] = await Promise.all([
+		prisma.report.count(),
+		prisma.report.count({
+			where: {
+				createdAt: {
+					gte: new Date(new Date().setHours(0, 0, 0, 0)),
+				},
+			},
+		}),
+		prisma.fraudCategory.findMany({
+			select: {
+				name: true,
+				_count: {
+					select: { reports: true },
+				},
+			},
+			orderBy: {
+				reports: {
+					_count: "desc",
+				},
+			},
+			take: 3,
+		}),
+	]);
 
-		const categories = categoryStats.map((cat) => ({
-			name: cat.name,
-			percentage:
-				totalWithReports > 0
-					? Math.round((cat._count.reports / totalWithReports) * 100)
-					: 0,
-		}));
+	const totalWithReports = categoryStats.reduce(
+		(acc, cat) => acc + cat._count.reports,
+		0,
+	);
 
-		return {
-			totalReports,
-			todayReports,
-			categories,
-		};
-	},
-	["home-current-status"],
-	{
-		tags: ["reports", "home-stats"],
-		revalidate: 60,
-	},
-);
+	const categories = categoryStats.map((cat) => ({
+		name: cat.name,
+		percentage:
+			totalWithReports > 0
+				? Math.round((cat._count.reports / totalWithReports) * 100)
+				: 0,
+	}));
+
+	return {
+		totalReports,
+		todayReports,
+		categories,
+	};
+}
 
 export default async function Home() {
 	await connection();

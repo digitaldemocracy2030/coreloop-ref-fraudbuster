@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { errorResponse, successResponse } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import type {
@@ -33,6 +34,8 @@ function toDateKey(date: Date): string {
  * Get aggregated statistics for the dashboard
  */
 export async function GET(request: Request) {
+	await connection();
+
 	try {
 		const { searchParams } = new URL(request.url);
 		const days = parseDays(searchParams.get("days"));

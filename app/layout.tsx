@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_JP } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -38,18 +39,20 @@ export default function RootLayout({
 			className={`${inter.variable} ${notoSansJP.variable}`}
 		>
 			<body className="antialiased min-h-screen flex flex-col font-sans">
-				<ThemeProvider
-					attribute="class"
-					defaultTheme="system"
-					enableSystem
-					disableTransitionOnChange
-				>
-					<SiteIntroductionModal />
-					<SiteHeader />
-					<main className="flex-1">{children}</main>
-					<SiteFooter />
-					<Toaster position="top-center" />
-				</ThemeProvider>
+				<Suspense fallback={<div className="min-h-screen" />}>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="system"
+						enableSystem
+						disableTransitionOnChange
+					>
+						<SiteIntroductionModal />
+						<SiteHeader />
+						<main className="flex-1">{children}</main>
+						<SiteFooter />
+						<Toaster position="top-center" />
+					</ThemeProvider>
+				</Suspense>
 			</body>
 		</html>
 	);

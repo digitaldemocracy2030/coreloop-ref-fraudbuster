@@ -1,5 +1,5 @@
 import { ArrowLeft, Calendar, Megaphone, User } from "lucide-react";
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -7,27 +7,26 @@ import { connection } from "next/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
-const getAnnouncementById = unstable_cache(
-	async (id: string) =>
-		prisma.announcement.findUnique({
-			where: { id },
-			include: {
-				tags: {
-					include: { tag: true },
-				},
-				admin: {
-					select: { name: true },
-				},
+async function getAnnouncementById(id: string) {
+	"use cache";
+	cacheTag("announcements");
+	cacheLife({ revalidate: 300 });
+
+	return prisma.announcement.findUnique({
+		where: { id },
+		include: {
+			tags: {
+				include: { tag: true },
 			},
-		}),
-	["announcement-detail"],
-	{
-		tags: ["announcements"],
-		revalidate: 300,
-	},
-);
+			admin: {
+				select: { name: true },
+			},
+		},
+	});
+}
 
 interface AnnouncementDetailPageProps {
 	params: Promise<{ id: string }>;
@@ -82,7 +81,7 @@ export default async function AnnouncementDetailPage({
 					<div className="flex items-center gap-1">
 						<Calendar className="h-4 w-4" />
 						<span>
-							{displayDate?.toLocaleDateString("ja-JP", {
+							{formatDate(displayDate, "ja-JP", {
 								year: "numeric",
 								month: "long",
 								day: "numeric",

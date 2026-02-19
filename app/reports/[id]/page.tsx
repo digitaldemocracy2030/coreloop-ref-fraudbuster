@@ -6,7 +6,7 @@ import {
 	ExternalLink,
 	Share2,
 } from "lucide-react";
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -14,28 +14,27 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
-const getReportById = unstable_cache(
-	async (id: string) =>
-		prisma.report.findUnique({
-			where: { id },
-			include: {
-				platform: true,
-				category: true,
-				status: true,
-				timelines: {
-					orderBy: { occurredAt: "asc" as const },
-					include: { admin: { select: { name: true } } },
-				},
+async function getReportById(id: string) {
+	"use cache";
+	cacheTag("reports");
+	cacheLife({ revalidate: 60 });
+
+	return prisma.report.findUnique({
+		where: { id },
+		include: {
+			platform: true,
+			category: true,
+			status: true,
+			timelines: {
+				orderBy: { occurredAt: "asc" as const },
+				include: { admin: { select: { name: true } } },
 			},
-		}),
-	["report-detail"],
-	{
-		tags: ["reports"],
-		revalidate: 60,
-	},
-);
+		},
+	});
+}
 
 interface ReportDetailPageProps {
 	params: Promise<{ id: string }>;
@@ -93,7 +92,7 @@ export default async function ReportDetailPage({
 							<div className="flex items-center gap-2 ml-auto text-sm text-muted-foreground">
 								<Calendar className="h-4 w-4" />
 								<span>
-									{report.createdAt?.toLocaleDateString("ja-JP") || "日付不明"}
+									{formatDate(report.createdAt, "ja-JP") ?? "日付不明"}
 								</span>
 							</div>
 						</div>
@@ -196,8 +195,7 @@ export default async function ReportDetailPage({
 															{item.actionLabel}
 														</p>
 														<span className="text-[10px] text-muted-foreground">
-															{item.occurredAt?.toLocaleDateString("ja-JP") ||
-																"不明"}
+															{formatDate(item.occurredAt, "ja-JP") ?? "不明"}
 														</span>
 													</div>
 													<p className="text-xs text-muted-foreground">

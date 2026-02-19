@@ -1,27 +1,26 @@
 import { Calendar, ChevronRight } from "lucide-react";
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
-const getAnnouncements = unstable_cache(
-	async () =>
-		prisma.announcement.findMany({
-			include: {
-				tags: {
-					include: { tag: true },
-				},
+async function getAnnouncements() {
+	"use cache";
+	cacheTag("announcements");
+	cacheLife({ revalidate: 300 });
+
+	return prisma.announcement.findMany({
+		include: {
+			tags: {
+				include: { tag: true },
 			},
-			orderBy: { createdAt: "desc" },
-		}),
-	["announcements-list"],
-	{
-		tags: ["announcements"],
-		revalidate: 300,
-	},
-);
+		},
+		orderBy: { createdAt: "desc" },
+	});
+}
 
 export default async function AnnouncementsPage() {
 	await connection();
@@ -48,7 +47,7 @@ export default async function AnnouncementsPage() {
 									<div className="space-y-1">
 										<div className="flex items-center gap-2 text-xs text-muted-foreground">
 											<Calendar className="h-3 w-3" />
-											{announcement.createdAt?.toLocaleDateString("ja-JP") ||
+											{formatDate(announcement.createdAt, "ja-JP") ??
 												"日付不明"}
 										</div>
 										<CardTitle className="group-hover:text-primary transition-colors">
