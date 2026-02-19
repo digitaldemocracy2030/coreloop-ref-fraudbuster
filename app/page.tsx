@@ -75,7 +75,7 @@ export default async function Home() {
 							<span className="text-primary italic">通報</span>
 						</h1>
 						<p className="text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0">
-							SNSやメッセージアプリの詐欺情報をクラウドソーシングで集めています。
+							SNSやメッセージアプリの詐欺情報を皆さんから集めています。
 						</p>
 						<div className="flex flex-wrap justify-center lg:justify-start gap-3">
 							<Link href="/report/new">

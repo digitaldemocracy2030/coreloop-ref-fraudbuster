@@ -42,7 +42,7 @@ export default async function AnnouncementsPage() {
 							key={announcement.id}
 							className="group hover:border-primary/20 transition-all"
 						>
-							<Link href={`/announcements/${announcement.id}`}>
+							<Link href={`/announcements/${announcement.id}`} prefetch>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0">
 									<div className="space-y-1">
 										<div className="flex items-center gap-2 text-xs text-muted-foreground">

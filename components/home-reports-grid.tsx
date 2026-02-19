@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Clock3, Search, ShieldAlert } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,14 @@ import type {
 } from "@/lib/types/api";
 
 const PAGE_SIZE = 12;
+const INITIAL_SKELETON_IDS = [
+	"report-skeleton-1",
+	"report-skeleton-2",
+	"report-skeleton-3",
+	"report-skeleton-4",
+	"report-skeleton-5",
+	"report-skeleton-6",
+];
 
 function normalizeResponse(payload: unknown): ReportsListResponse {
 	if (Array.isArray(payload)) {
@@ -62,14 +71,28 @@ function riskStyle(score: number | null) {
 function ReportSummaryCard({ report }: { report: ReportSummary }) {
 	const thumbnailUrl = report.images[0]?.imageUrl ?? null;
 	const [hasThumbnailError, setHasThumbnailError] = React.useState(false);
+	const router = useRouter();
+	const href = `/reports/${report.id}`;
 
 	React.useEffect(() => {
+		if (!thumbnailUrl) {
+			setHasThumbnailError(false);
+			return;
+		}
 		setHasThumbnailError(false);
 	}, [thumbnailUrl]);
 
+	const prefetchDetail = React.useCallback(() => {
+		router.prefetch(href);
+	}, [href, router]);
+
 	return (
 		<Link
-			href={`/reports/${report.id}`}
+			href={href}
+			prefetch
+			onMouseEnter={prefetchDetail}
+			onFocus={prefetchDetail}
+			onTouchStart={prefetchDetail}
 			className="block h-full"
 			data-testid="report-card"
 		>
@@ -307,8 +330,8 @@ export function HomeReportsGrid() {
 
 			{!hasLoadedInitial ? (
 				<div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-					{Array.from({ length: 6 }).map((_, index) => (
-						<Card key={`skeleton-${index}`}>
+					{INITIAL_SKELETON_IDS.map((id) => (
+						<Card key={id}>
 							<CardContent className="space-y-4 p-5">
 								<Skeleton className="aspect-video w-full rounded-xl" />
 								<Skeleton className="h-5 w-2/3" />
