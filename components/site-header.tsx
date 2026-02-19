@@ -63,10 +63,15 @@ export function SiteHeader() {
 					</nav>
 				</div>
 				<div className="flex items-center gap-4">
-					<div className="hidden sm:block">
+					<div className="hidden sm:flex items-center gap-2">
 						<Link href="/report/new">
 							<Button variant="default" className="rounded-full px-6">
 								通報する
+							</Button>
+						</Link>
+						<Link href="/report/history">
+							<Button variant="outline" className="rounded-full px-6">
+								履歴を見る
 							</Button>
 						</Link>
 					</div>
