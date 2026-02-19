@@ -34,6 +34,7 @@ export default function ContactPage() {
 			: "";
 
 	const [isSubmitting, setIsSubmitting] = React.useState(false);
+	const lastPresetMessageRef = React.useRef(presetMessage);
 	const [formData, setFormData] = React.useState({
 		name: "",
 		email: "",
@@ -48,11 +49,19 @@ export default function ContactPage() {
 
 		setFormData((current) => {
 			const nextSubject = current.subject || presetSubject;
-			const nextMessage = current.message || presetMessage;
+			const wasUsingPreviousPreset =
+				current.message === lastPresetMessageRef.current;
+			const nextMessage =
+				current.message === "" || wasUsingPreviousPreset
+					? presetMessage
+					: current.message;
 
 			if (nextSubject === current.subject && nextMessage === current.message) {
+				lastPresetMessageRef.current = presetMessage;
 				return current;
 			}
+
+			lastPresetMessageRef.current = presetMessage;
 
 			return {
 				...current,
