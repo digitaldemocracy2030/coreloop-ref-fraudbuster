@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, Mail, MessageSquare, Send } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -18,13 +19,57 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function ContactPage() {
+	const searchParams = useSearchParams();
+	const requestType = searchParams.get("type");
+	const reportId = searchParams.get("reportId");
+
+	const presetSubject =
+		requestType === "report-fix-delete" ? "通報内容の修正・削除依頼" : "";
+	const presetMessage =
+		requestType === "report-fix-delete" && reportId
+			? `対象通報ID: ${reportId}
+依頼内容: （修正 or 削除）
+理由: 
+修正後の内容（修正依頼の場合）: `
+			: "";
+
 	const [isSubmitting, setIsSubmitting] = React.useState(false);
+	const lastPresetMessageRef = React.useRef(presetMessage);
 	const [formData, setFormData] = React.useState({
 		name: "",
 		email: "",
-		subject: "",
-		message: "",
+		subject: presetSubject,
+		message: presetMessage,
 	});
+
+	React.useEffect(() => {
+		if (requestType !== "report-fix-delete") {
+			return;
+		}
+
+		setFormData((current) => {
+			const nextSubject = current.subject || presetSubject;
+			const wasUsingPreviousPreset =
+				current.message === lastPresetMessageRef.current;
+			const nextMessage =
+				current.message === "" || wasUsingPreviousPreset
+					? presetMessage
+					: current.message;
+
+			if (nextSubject === current.subject && nextMessage === current.message) {
+				lastPresetMessageRef.current = presetMessage;
+				return current;
+			}
+
+			lastPresetMessageRef.current = presetMessage;
+
+			return {
+				...current,
+				subject: nextSubject,
+				message: nextMessage,
+			};
+		});
+	}, [requestType, presetMessage, presetSubject]);
 
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();

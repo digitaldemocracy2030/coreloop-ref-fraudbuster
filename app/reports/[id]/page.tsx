@@ -4,12 +4,13 @@ import {
 	CheckCircle2,
 	Clock,
 	ExternalLink,
-	Share2,
 } from "lucide-react";
 import { cacheLife, cacheTag } from "next/cache";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { ReportShareDialog } from "@/components/report-share-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,12 +46,35 @@ export default async function ReportDetailPage({
 }: ReportDetailPageProps) {
 	const { id } = await params;
 	await connection();
+	const headerStore = await headers();
 
 	const report = await getReportById(id);
 
 	if (!report) {
 		notFound();
 	}
+
+	const host =
+		headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "";
+	const protocol = headerStore.get("x-forwarded-proto") ?? "https";
+	const reportPageUrl = host
+		? `${protocol}://${host}/reports/${report.id}`
+		: `/reports/${report.id}`;
+
+	const shareText = `【注意喚起】${report.title || "案件詳細"} | 詐欺情報共有`;
+	const xShareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+		text: shareText,
+		url: reportPageUrl,
+	}).toString()}`;
+	const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams(
+		{
+			u: reportPageUrl,
+		},
+	).toString()}`;
+	const reportFixRequestUrl = `/contact?${new URLSearchParams({
+		type: "report-fix-delete",
+		reportId: report.id,
+	}).toString()}`;
 
 	// Format Risk Score color
 	const getRiskColor = (score: number) => {
@@ -225,16 +249,19 @@ export default async function ReportDetailPage({
 					{/* Actions Widget */}
 					<Card>
 						<CardContent className="pt-6 space-y-4">
-							<Button className="w-full rounded-xl gap-2 h-12">
-								<Share2 className="h-4 w-4" />
-								情報をシェアする
-							</Button>
+							<ReportShareDialog
+								xShareUrl={xShareUrl}
+								facebookShareUrl={facebookShareUrl}
+							/>
 							<Button
+								asChild
 								variant="outline"
 								className="w-full rounded-xl gap-2 h-12 text-destructive hover:bg-destructive/5 hover:text-destructive border-destructive/20"
 							>
-								<AlertTriangle className="h-4 w-4" />
-								この通報を修正・削除依頼
+								<Link href={reportFixRequestUrl}>
+									<AlertTriangle className="h-4 w-4" />
+									この通報を修正・削除依頼
+								</Link>
 							</Button>
 							<Separator />
 							<div className="flex flex-col gap-2">
