@@ -10,7 +10,7 @@ import {
 	ShieldCheck,
 	Upload,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Script from "next/script";
 import * as React from "react";
 import { toast } from "sonner";
@@ -58,6 +58,15 @@ type WindowWithTurnstile = Window & { turnstile?: TurnstileApi };
 
 type Step = "basic" | "details" | "verify" | "complete";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const getInitialFormData = () => ({
+	url: "",
+	categoryId: "",
+	platformId: "",
+	title: "",
+	description: "",
+	email: "",
+	spamTrap: "",
+});
 
 function RequiredAsterisk() {
 	return (
@@ -73,16 +82,9 @@ function RequiredAsterisk() {
 export default function NewReportPage() {
 	const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 	const router = useRouter();
+	const pathname = usePathname();
 	const [step, setStep] = React.useState<Step>("basic");
-	const [formData, setFormData] = React.useState({
-		url: "",
-		categoryId: "",
-		platformId: "",
-		title: "",
-		description: "",
-		email: "",
-		spamTrap: "",
-	});
+	const [formData, setFormData] = React.useState(getInitialFormData);
 	const [turnstileToken, setTurnstileToken] = React.useState("");
 	const [turnstileScriptReady, setTurnstileScriptReady] = React.useState(false);
 	const [turnstileWidgetId, setTurnstileWidgetId] = React.useState<
@@ -91,6 +93,7 @@ export default function NewReportPage() {
 	const [loading, setLoading] = React.useState(false);
 	const formStartedAtRef = React.useRef(Date.now());
 	const turnstileContainerRef = React.useRef<HTMLDivElement | null>(null);
+	const previousPathnameRef = React.useRef(pathname);
 
 	const progress = {
 		basic: 25,
@@ -138,6 +141,18 @@ export default function NewReportPage() {
 		setTurnstileWidgetId(null);
 		setTurnstileToken("");
 	}, [step, turnstileWidgetId]);
+
+	React.useEffect(() => {
+		const previousPathname = previousPathnameRef.current;
+		if (pathname === "/report/new" && previousPathname !== "/report/new") {
+			setStep("basic");
+			setFormData(getInitialFormData());
+			setTurnstileToken("");
+			setLoading(false);
+			formStartedAtRef.current = Date.now();
+		}
+		previousPathnameRef.current = pathname;
+	}, [pathname]);
 
 	const resetTurnstile = React.useCallback(() => {
 		setTurnstileToken("");
@@ -241,6 +256,23 @@ export default function NewReportPage() {
 	const prevStep = () => {
 		if (step === "details") setStep("basic");
 		else if (step === "verify") setStep("details");
+	};
+
+	const resetReportFormState = React.useCallback(() => {
+		setStep("basic");
+		setFormData(getInitialFormData());
+		setTurnstileToken("");
+		setLoading(false);
+		formStartedAtRef.current = Date.now();
+	}, []);
+
+	const handleContinueReporting = () => {
+		resetReportFormState();
+	};
+
+	const handleReturnHome = () => {
+		resetReportFormState();
+		router.push("/");
 	};
 
 	return (
@@ -552,7 +584,14 @@ export default function NewReportPage() {
 						<div className="pt-4 space-y-4">
 							<Button
 								className="w-full h-12 rounded-xl"
-								onClick={() => router.push("/")}
+								onClick={handleContinueReporting}
+							>
+								続けて通報する
+							</Button>
+							<Button
+								variant="outline"
+								className="w-full h-12 rounded-xl"
+								onClick={handleReturnHome}
 							>
 								ホームに戻る
 							</Button>
