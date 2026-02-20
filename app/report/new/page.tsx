@@ -506,13 +506,6 @@ export default function NewReportPage() {
 							>
 								ホームに戻る
 							</Button>
-							<Button
-								variant="ghost"
-								className="w-full text-muted-foreground"
-								onClick={() => router.push("/reports")}
-							>
-								自分の通報履歴を確認する
-							</Button>
 						</div>
 					</CardContent>
 				</Card>
