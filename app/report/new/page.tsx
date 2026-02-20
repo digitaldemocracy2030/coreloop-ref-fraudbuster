@@ -799,7 +799,7 @@ export default function NewReportPage() {
 						>
 							{loading
 								? isUploadingScreenshots
-									? "画像をアップロード中..."
+									? "登録中..."
 									: "送信中..."
 								: "通報を完了する"}
 						</Button>
