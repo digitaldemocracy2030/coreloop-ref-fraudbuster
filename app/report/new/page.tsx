@@ -466,7 +466,7 @@ export default function NewReportPage() {
 
 						<div className="space-y-2">
 							<Label htmlFor="verifyEmail">
-								連絡用メールアドレス
+								メールアドレス
 								<RequiredAsterisk />
 							</Label>
 							<Input
