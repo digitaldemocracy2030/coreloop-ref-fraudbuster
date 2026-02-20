@@ -127,7 +127,7 @@ export default async function ReportDetailPage({
 
 						<div className="space-y-2">
 							<label className="text-xs font-bold text-muted-foreground uppercase">
-								リンクのOGP画像
+								関連画像
 							</label>
 							{ogpImageUrl ? (
 								<div className="overflow-hidden rounded-xl border bg-muted/20">
@@ -141,7 +141,7 @@ export default async function ReportDetailPage({
 								</div>
 							) : (
 								<div className="rounded-lg border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
-									OGP画像は取得されていません。
+									画像は登録されていません。
 								</div>
 							)}
 						</div>

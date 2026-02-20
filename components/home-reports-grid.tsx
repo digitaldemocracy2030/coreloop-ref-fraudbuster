@@ -116,39 +116,46 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 		>
 			<Card className="group h-full overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-md">
 				<CardContent className="flex h-full items-stretch gap-4 p-4 sm:p-5">
-					<div className="h-24 w-36 shrink-0 overflow-hidden rounded-lg bg-muted/70 sm:h-28 sm:w-44">
-						{thumbnailUrl && !hasThumbnailError ? (
-							<img
-								src={thumbnailUrl}
-								alt={report.title || report.url}
-								loading="lazy"
-								referrerPolicy="no-referrer"
-								className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-								onError={() => setHasThumbnailError(true)}
-							/>
-						) : (
-							<div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
-								<ShieldAlert className="h-5 w-5" />
-								<span className="text-xs">サムネイルなし</span>
-							</div>
-						)}
+					<div className="w-36 shrink-0 space-y-2 sm:w-44">
+						<div
+							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${riskClassName}`}
+						>
+							<AlertTriangle className="h-3 w-3" />
+							<span>リスク {riskDisplay}</span>
+						</div>
+						<div className="h-24 overflow-hidden rounded-lg bg-muted/70 sm:h-28">
+							{thumbnailUrl && !hasThumbnailError ? (
+								<img
+									src={thumbnailUrl}
+									alt={report.title || report.url}
+									loading="lazy"
+									referrerPolicy="no-referrer"
+									className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+									onError={() => setHasThumbnailError(true)}
+								/>
+							) : (
+								<div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
+									<ShieldAlert className="h-5 w-5" />
+									<span className="text-xs">サムネイルなし</span>
+								</div>
+							)}
+						</div>
 					</div>
 					<div className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden">
-						<div className="flex min-h-5 items-center gap-2 overflow-hidden">
-							<Badge variant="secondary" className="shrink-0">
-								{report.category?.name || "未分類"}
-							</Badge>
-							<Badge variant="outline" className="shrink-0">
-								{report.platform?.name || "不明なプラットフォーム"}
-							</Badge>
-							{report.status?.label ? (
-								<Badge variant="outline" className="shrink-0">
-									{report.status.label}
-								</Badge>
-							) : null}
-							<span className="ml-auto shrink-0 text-xs text-muted-foreground">
+						<div className="space-y-1">
+							<p className="text-xs text-muted-foreground">
 								{formatDate(report.createdAt)}
-							</span>
+							</p>
+							<div className="flex min-h-5 items-center gap-2 overflow-hidden">
+								<Badge variant="secondary" className="shrink-0">
+									{report.category?.name || "未分類"}
+								</Badge>
+								{report.status?.label ? (
+									<Badge variant="outline" className="shrink-0">
+										{report.status.label}
+									</Badge>
+								) : null}
+							</div>
 						</div>
 
 						<div className="space-y-1.5">
@@ -158,15 +165,6 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 							<p className="min-h-10 line-clamp-2 text-sm text-muted-foreground">
 								{report.description || report.url}
 							</p>
-						</div>
-
-						<div className="mt-auto flex items-center justify-between gap-3 pt-1">
-							<div
-								className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${riskClassName}`}
-							>
-								<AlertTriangle className="h-3.5 w-3.5" />
-								<span>リスク {riskDisplay}</span>
-							</div>
 						</div>
 					</div>
 				</CardContent>

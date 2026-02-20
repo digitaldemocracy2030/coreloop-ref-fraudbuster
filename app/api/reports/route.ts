@@ -40,6 +40,11 @@ const PREVIEW_USER_AGENT =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
 const TURNSTILE_VERIFY_ENDPOINT =
 	"https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const MAX_SCREENSHOT_COUNT = 5;
+const REPORT_SCREENSHOT_BUCKET =
+	process.env.SUPABASE_REPORT_SCREENSHOT_BUCKET?.trim() || "report-screenshots";
+const SUPABASE_PROJECT_URL =
+	process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const createReportId = customAlphabet(
 	"0123456789abcdefghijklmnopqrstuvwxyz",
 	12,
@@ -54,6 +59,45 @@ type ReportLinkPreview = {
 	title: string | null;
 	thumbnailUrl: string | null;
 };
+
+function resolveOrigin(value: string): string | null {
+	if (!value) return null;
+	try {
+		const parsed = new URL(value);
+		if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+			return null;
+		}
+		return parsed.origin;
+	} catch {
+		return null;
+	}
+}
+
+const SUPABASE_PROJECT_ORIGIN = resolveOrigin(SUPABASE_PROJECT_URL);
+
+function isValidScreenshotPublicUrl(value: string): boolean {
+	const trimmed = value.trim();
+	if (!trimmed || trimmed.length > 2048) return false;
+	if (!SUPABASE_PROJECT_ORIGIN) return false;
+
+	try {
+		const parsed = new URL(trimmed);
+		if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+			return false;
+		}
+		if (parsed.origin !== SUPABASE_PROJECT_ORIGIN) return false;
+
+		const encodedBucket = encodeURIComponent(REPORT_SCREENSHOT_BUCKET);
+		return (
+			parsed.pathname.startsWith(
+				`/storage/v1/object/public/${REPORT_SCREENSHOT_BUCKET}/`,
+			) ||
+			parsed.pathname.startsWith(`/storage/v1/object/public/${encodedBucket}/`)
+		);
+	} catch {
+		return false;
+	}
+}
 
 function normalizeIp(value: string | null): string | null {
 	if (!value) return null;
@@ -629,6 +673,35 @@ export async function POST(request: NextRequest) {
 			typeof body.spamTrap === "string" ? body.spamTrap.trim() : "";
 		const formStartedAt =
 			typeof body.formStartedAt === "number" ? body.formStartedAt : Number.NaN;
+		const rawScreenshotUrls = body.screenshotUrls;
+		if (
+			typeof rawScreenshotUrls !== "undefined" &&
+			!Array.isArray(rawScreenshotUrls)
+		) {
+			return badRequestResponse("スクリーンショット情報が不正です");
+		}
+		const normalizedScreenshotUrls: string[] = [];
+		for (const screenshotUrl of rawScreenshotUrls ?? []) {
+			if (typeof screenshotUrl !== "string") {
+				return badRequestResponse("スクリーンショット情報が不正です");
+			}
+			const trimmedScreenshotUrl = screenshotUrl.trim();
+			if (!trimmedScreenshotUrl) {
+				return badRequestResponse("スクリーンショット情報が不正です");
+			}
+			normalizedScreenshotUrls.push(trimmedScreenshotUrl);
+		}
+		const screenshotUrls = Array.from(new Set(normalizedScreenshotUrls));
+		if (screenshotUrls.length > MAX_SCREENSHOT_COUNT) {
+			return badRequestResponse("スクリーンショットは最大5枚までです");
+		}
+		if (
+			screenshotUrls.some(
+				(screenshotUrl) => !isValidScreenshotPublicUrl(screenshotUrl),
+			)
+		) {
+			return badRequestResponse("スクリーンショットURLが不正です");
+		}
 		const clientIp = getClientIp(request);
 		const userAgent = request.headers.get("user-agent")?.trim() || "unknown";
 		const rateLimitKey = clientIp
@@ -703,6 +776,12 @@ export async function POST(request: NextRequest) {
 		}
 
 		const reportPreview = await fetchReportLinkPreview(url);
+		const reportImageUrls = Array.from(
+			new Set([
+				...screenshotUrls,
+				...(reportPreview.thumbnailUrl ? [reportPreview.thumbnailUrl] : []),
+			]),
+		);
 		const user = await prisma.user.upsert({
 			where: { email },
 			update: { lastLoginAt: new Date() },
@@ -722,14 +801,15 @@ export async function POST(request: NextRequest) {
 				riskScore: 0,
 				reportCount: 1,
 				sourceIp: clientIp,
-				images: reportPreview.thumbnailUrl
-					? {
-							create: {
-								imageUrl: reportPreview.thumbnailUrl,
-								displayOrder: 0,
-							},
-						}
-					: undefined,
+				images:
+					reportImageUrls.length > 0
+						? {
+								create: reportImageUrls.map((imageUrl, index) => ({
+									imageUrl,
+									displayOrder: index,
+								})),
+							}
+						: undefined,
 			},
 			include: {
 				status: true,

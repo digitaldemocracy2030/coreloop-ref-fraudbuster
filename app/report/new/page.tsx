@@ -9,6 +9,7 @@ import {
 	ShieldAlert,
 	ShieldCheck,
 	Upload,
+	X,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Script from "next/script";
@@ -58,6 +59,16 @@ type WindowWithTurnstile = Window & { turnstile?: TurnstileApi };
 
 type Step = "basic" | "details" | "verify" | "complete";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_SCREENSHOT_FILES = 5;
+const MAX_SCREENSHOT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_SCREENSHOT_CONTENT_TYPES = new Set(["image/jpeg", "image/png"]);
+
+type ScreenshotAttachment = {
+	id: string;
+	file: File;
+	previewUrl: string;
+};
+
 const getInitialFormData = () => ({
 	url: "",
 	categoryId: "",
@@ -91,8 +102,16 @@ export default function NewReportPage() {
 		string | null
 	>(null);
 	const [loading, setLoading] = React.useState(false);
+	const [screenshots, setScreenshots] = React.useState<ScreenshotAttachment[]>(
+		[],
+	);
+	const [isDragActive, setIsDragActive] = React.useState(false);
+	const [isUploadingScreenshots, setIsUploadingScreenshots] =
+		React.useState(false);
 	const formStartedAtRef = React.useRef(Date.now());
 	const turnstileContainerRef = React.useRef<HTMLDivElement | null>(null);
+	const screenshotFileInputRef = React.useRef<HTMLInputElement | null>(null);
+	const screenshotsRef = React.useRef<ScreenshotAttachment[]>([]);
 	const previousPathnameRef = React.useRef(pathname);
 
 	const progress = {
@@ -107,6 +126,156 @@ export default function NewReportPage() {
 		formData.url.trim().length > 0 &&
 		formData.platformId.length > 0 &&
 		formData.categoryId.length > 0;
+
+	React.useEffect(() => {
+		screenshotsRef.current = screenshots;
+	}, [screenshots]);
+
+	React.useEffect(() => {
+		return () => {
+			for (const screenshot of screenshotsRef.current) {
+				URL.revokeObjectURL(screenshot.previewUrl);
+			}
+		};
+	}, []);
+
+	const clearScreenshots = React.useCallback(() => {
+		setScreenshots((current) => {
+			for (const screenshot of current) {
+				URL.revokeObjectURL(screenshot.previewUrl);
+			}
+			return [];
+		});
+		if (screenshotFileInputRef.current) {
+			screenshotFileInputRef.current.value = "";
+		}
+	}, []);
+
+	const addScreenshotFiles = React.useCallback(
+		(incomingFiles: FileList | File[]) => {
+			const files = Array.from(incomingFiles);
+			if (files.length === 0) return;
+
+			const availableSlots = MAX_SCREENSHOT_FILES - screenshots.length;
+			if (availableSlots <= 0) {
+				toast.error("スクリーンショットは最大5枚までです。");
+				return;
+			}
+
+			const acceptedFiles: File[] = [];
+			for (const file of files) {
+				if (!ALLOWED_SCREENSHOT_CONTENT_TYPES.has(file.type)) {
+					toast.error(`${file.name} は JPG / PNG のみ添付できます。`);
+					continue;
+				}
+				if (file.size <= 0) {
+					toast.error(`${file.name} は空のファイルです。`);
+					continue;
+				}
+				if (file.size > MAX_SCREENSHOT_FILE_SIZE_BYTES) {
+					toast.error(`${file.name} は5MB以下にしてください。`);
+					continue;
+				}
+
+				acceptedFiles.push(file);
+				if (acceptedFiles.length >= availableSlots) {
+					break;
+				}
+			}
+
+			if (files.length > availableSlots) {
+				toast.error("スクリーンショットは最大5枚までです。");
+			}
+			if (acceptedFiles.length === 0) return;
+
+			const attachments = acceptedFiles.map((file) => ({
+				id: `${file.name}-${file.lastModified}-${Math.random()
+					.toString(36)
+					.slice(2, 10)}`,
+				file,
+				previewUrl: URL.createObjectURL(file),
+			}));
+
+			setScreenshots((current) => [...current, ...attachments]);
+		},
+		[screenshots.length],
+	);
+
+	const removeScreenshot = React.useCallback((id: string) => {
+		setScreenshots((current) => {
+			const screenshot = current.find((item) => item.id === id);
+			if (screenshot) {
+				URL.revokeObjectURL(screenshot.previewUrl);
+			}
+			return current.filter((item) => item.id !== id);
+		});
+	}, []);
+
+	const handleScreenshotFileInputChange = (
+		event: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		if (event.target.files) {
+			addScreenshotFiles(event.target.files);
+		}
+		event.target.value = "";
+	};
+
+	const handleScreenshotDrop = (event: React.DragEvent<HTMLDivElement>) => {
+		event.preventDefault();
+		setIsDragActive(false);
+		addScreenshotFiles(event.dataTransfer.files);
+	};
+
+	const handleScreenshotDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+		event.preventDefault();
+		setIsDragActive(true);
+	};
+
+	const handleScreenshotDragLeave = () => {
+		setIsDragActive(false);
+	};
+
+	const uploadScreenshots = React.useCallback(async (): Promise<string[]> => {
+		if (screenshots.length === 0) return [];
+
+		const uploadFormData = new FormData();
+		for (const screenshot of screenshots) {
+			uploadFormData.append("files", screenshot.file, screenshot.file.name);
+		}
+
+		const uploadResponse = await fetch("/api/reports/upload-images", {
+			method: "POST",
+			body: uploadFormData,
+		});
+
+		const payload = (await uploadResponse.json().catch(() => null)) as {
+			error?: string;
+			files?: Array<{
+				path?: string;
+				publicUrl?: string;
+				contentType?: string;
+				size?: number;
+			}>;
+		} | null;
+
+		if (!uploadResponse.ok) {
+			throw new Error(
+				payload?.error || "スクリーンショットのアップロードに失敗しました。",
+			);
+		}
+
+		const uploadedUrls = (Array.isArray(payload?.files) ? payload.files : [])
+			.map((item) => (typeof item.publicUrl === "string" ? item.publicUrl : ""))
+			.filter((value) => value.length > 0);
+
+		if (uploadedUrls.length !== screenshots.length) {
+			throw new Error(
+				"スクリーンショットのアップロード結果が不足しています。時間を置いて再試行してください。",
+			);
+		}
+
+		return uploadedUrls;
+	}, [screenshots]);
 
 	React.useEffect(() => {
 		if (step !== "verify") return;
@@ -147,12 +316,15 @@ export default function NewReportPage() {
 		if (pathname === "/report/new" && previousPathname !== "/report/new") {
 			setStep("basic");
 			setFormData(getInitialFormData());
+			clearScreenshots();
+			setIsDragActive(false);
 			setTurnstileToken("");
 			setLoading(false);
+			setIsUploadingScreenshots(false);
 			formStartedAtRef.current = Date.now();
 		}
 		previousPathnameRef.current = pathname;
-	}, [pathname]);
+	}, [pathname, clearScreenshots]);
 
 	const resetTurnstile = React.useCallback(() => {
 		setTurnstileToken("");
@@ -194,6 +366,12 @@ export default function NewReportPage() {
 
 		setLoading(true);
 		try {
+			let screenshotUrls: string[] = [];
+			if (screenshots.length > 0) {
+				setIsUploadingScreenshots(true);
+				screenshotUrls = await uploadScreenshots();
+			}
+
 			const response = await fetch("/api/reports", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -207,6 +385,7 @@ export default function NewReportPage() {
 					formStartedAt: formStartedAtRef.current,
 					turnstileToken,
 					spamTrap: formData.spamTrap,
+					screenshotUrls,
 				}),
 			});
 
@@ -220,6 +399,7 @@ export default function NewReportPage() {
 				throw new Error(payload?.error || "送信に失敗しました。");
 			}
 
+			clearScreenshots();
 			setStep("complete");
 			toast.success("通報が完了しました。ご協力ありがとうございます。");
 		} catch (error) {
@@ -232,6 +412,7 @@ export default function NewReportPage() {
 			console.error(error);
 		} finally {
 			setLoading(false);
+			setIsUploadingScreenshots(false);
 		}
 	};
 
@@ -261,10 +442,13 @@ export default function NewReportPage() {
 	const resetReportFormState = React.useCallback(() => {
 		setStep("basic");
 		setFormData(getInitialFormData());
+		clearScreenshots();
+		setIsDragActive(false);
 		setTurnstileToken("");
 		setLoading(false);
+		setIsUploadingScreenshots(false);
 		formStartedAtRef.current = Date.now();
-	}, []);
+	}, [clearScreenshots]);
 
 	const handleContinueReporting = () => {
 		resetReportFormState();
@@ -420,7 +604,7 @@ export default function NewReportPage() {
 					</CardHeader>
 					<CardContent className="space-y-6">
 						<div className="space-y-2">
-							<Label htmlFor="title">タイトル</Label>
+							<Label htmlFor="title">タイトル (任意)</Label>
 							<Input
 								id="title"
 								placeholder="例：Amazonを装った偽メール"
@@ -431,7 +615,7 @@ export default function NewReportPage() {
 							/>
 						</div>
 						<div className="space-y-2">
-							<Label htmlFor="description">内容の詳細</Label>
+							<Label htmlFor="description">内容の詳細 (任意)</Label>
 							<Textarea
 								id="description"
 								placeholder="どのような経緯で届いたか、どのような被害が予想されるかなどを詳しく入力してください。"
@@ -444,15 +628,62 @@ export default function NewReportPage() {
 						</div>
 						<div className="space-y-2">
 							<Label>スクリーンショット (任意)</Label>
-							<div className="border-2 border-dashed rounded-xl p-8 text-center space-y-2 hover:border-primary/50 transition-colors cursor-pointer bg-muted/30">
+							<input
+								ref={screenshotFileInputRef}
+								type="file"
+								accept="image/jpeg,image/png"
+								multiple
+								className="hidden"
+								onChange={handleScreenshotFileInputChange}
+							/>
+							<div
+								role="button"
+								tabIndex={0}
+								onClick={() => screenshotFileInputRef.current?.click()}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									screenshotFileInputRef.current?.click();
+								}}
+								onDragOver={handleScreenshotDragOver}
+								onDragLeave={handleScreenshotDragLeave}
+								onDrop={handleScreenshotDrop}
+								className={`border-2 border-dashed rounded-xl p-8 text-center space-y-2 transition-colors cursor-pointer bg-muted/30 ${
+									isDragActive ? "border-primary" : "hover:border-primary/50"
+								}`}
+							>
 								<Upload className="h-8 w-8 mx-auto text-muted-foreground" />
 								<p className="text-sm font-medium">
 									クリックまたはドラッグ＆ドロップで追加
 								</p>
 								<p className="text-xs text-muted-foreground">
-									最大5枚まで（JPG, PNG）
+									最大5枚まで（JPG, PNG / 各5MB）
 								</p>
 							</div>
+							{screenshots.length > 0 ? (
+								<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+									{screenshots.map((screenshot, index) => (
+										<div
+											key={screenshot.id}
+											className="relative overflow-hidden rounded-lg border bg-muted/20"
+										>
+											<img
+												src={screenshot.previewUrl}
+												alt={`添付スクリーンショット ${index + 1}`}
+												className="h-28 w-full object-cover"
+											/>
+											<button
+												type="button"
+												onClick={() => removeScreenshot(screenshot.id)}
+												className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-muted-foreground hover:text-foreground"
+												aria-label={`添付スクリーンショット ${index + 1} を削除`}
+											>
+												<X className="h-3.5 w-3.5" />
+											</button>
+										</div>
+									))}
+								</div>
+							) : null}
 						</div>
 					</CardContent>
 					<CardFooter className="flex gap-4">
@@ -528,6 +759,11 @@ export default function NewReportPage() {
 							<p className="text-xs text-muted-foreground">
 								短時間での連続投稿は引き続きサーバー側で制限されます。
 							</p>
+							{screenshots.length > 0 ? (
+								<p className="text-xs text-muted-foreground">
+									添付予定のスクリーンショット: {screenshots.length}枚
+								</p>
+							) : null}
 						</div>
 
 						<div
@@ -561,7 +797,11 @@ export default function NewReportPage() {
 								loading || !turnstileSiteKey || !turnstileToken || !isEmailValid
 							}
 						>
-							{loading ? "送信中..." : "通報を完了する"}
+							{loading
+								? isUploadingScreenshots
+									? "登録中..."
+									: "送信中..."
+								: "通報を完了する"}
 						</Button>
 					</CardFooter>
 				</Card>
