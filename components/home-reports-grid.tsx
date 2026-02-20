@@ -114,8 +114,8 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 			className="block h-full"
 			data-testid="report-card"
 		>
-			<Card className="group transition-all hover:-translate-y-0.5 hover:shadow-md">
-				<CardContent className="flex items-start gap-4 p-4 sm:p-5">
+			<Card className="group h-full overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-md">
+				<CardContent className="flex h-full items-stretch gap-4 p-4 sm:p-5">
 					<div className="h-24 w-36 shrink-0 overflow-hidden rounded-lg bg-muted/70 sm:h-28 sm:w-44">
 						{thumbnailUrl && !hasThumbnailError ? (
 							<img
@@ -133,27 +133,29 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 							</div>
 						)}
 					</div>
-					<div className="flex min-w-0 flex-1 flex-col gap-3">
-						<div className="flex flex-wrap items-center gap-2">
-							<Badge variant="secondary">
+					<div className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+						<div className="flex min-h-5 items-center gap-2 overflow-hidden">
+							<Badge variant="secondary" className="shrink-0">
 								{report.category?.name || "未分類"}
 							</Badge>
-							<Badge variant="outline">
+							<Badge variant="outline" className="shrink-0">
 								{report.platform?.name || "不明なプラットフォーム"}
 							</Badge>
 							{report.status?.label ? (
-								<Badge variant="outline">{report.status.label}</Badge>
+								<Badge variant="outline" className="shrink-0">
+									{report.status.label}
+								</Badge>
 							) : null}
-							<span className="ml-auto text-xs text-muted-foreground">
+							<span className="ml-auto shrink-0 text-xs text-muted-foreground">
 								{formatDate(report.createdAt)}
 							</span>
 						</div>
 
 						<div className="space-y-1.5">
-							<h3 className="line-clamp-2 text-base font-bold leading-tight group-hover:text-primary">
+							<h3 className="min-h-10 line-clamp-2 text-base font-bold leading-tight group-hover:text-primary">
 								{report.title || "（タイトルなし）"}
 							</h3>
-							<p className="line-clamp-2 text-sm text-muted-foreground">
+							<p className="min-h-10 line-clamp-2 text-sm text-muted-foreground">
 								{report.description || report.url}
 							</p>
 						</div>
