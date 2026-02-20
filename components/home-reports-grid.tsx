@@ -68,11 +68,29 @@ function riskStyle(score: number | null) {
 	return "bg-green-500/10 text-green-700 border-green-500/20";
 }
 
+function isUnderReviewStatus(report: ReportSummary) {
+	const label = report.status?.label ?? "";
+	return (
+		report.status?.id === 1 ||
+		label.includes("審査中") ||
+		label.includes("調査中")
+	);
+}
+
 function ReportSummaryCard({ report }: { report: ReportSummary }) {
 	const thumbnailUrl = report.images[0]?.imageUrl ?? null;
 	const [hasThumbnailError, setHasThumbnailError] = React.useState(false);
 	const router = useRouter();
 	const href = `/reports/${report.id}`;
+	const maskRiskScore = isUnderReviewStatus(report);
+	const riskDisplay = maskRiskScore
+		? "-"
+		: report.riskScore === null
+			? "-"
+			: report.riskScore;
+	const riskClassName = maskRiskScore
+		? "bg-muted text-muted-foreground border-border"
+		: riskStyle(report.riskScore);
 
 	React.useEffect(() => {
 		if (!thumbnailUrl) {
@@ -142,10 +160,10 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 
 						<div className="mt-auto flex items-center justify-between gap-3 pt-1">
 							<div
-								className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${riskStyle(report.riskScore)}`}
+								className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${riskClassName}`}
 							>
 								<AlertTriangle className="h-3.5 w-3.5" />
-								<span>リスク {report.riskScore ?? 0}</span>
+								<span>リスク {riskDisplay}</span>
 							</div>
 						</div>
 					</div>

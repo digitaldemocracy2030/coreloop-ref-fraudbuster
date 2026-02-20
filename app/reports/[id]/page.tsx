@@ -1,10 +1,4 @@
-import {
-	AlertTriangle,
-	Calendar,
-	CheckCircle2,
-	Clock,
-	ExternalLink,
-} from "lucide-react";
+import { AlertTriangle, Calendar, CheckCircle2, Clock } from "lucide-react";
 import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -61,7 +55,7 @@ export default async function ReportDetailPage({
 		? `${protocol}://${host}/reports/${report.id}`
 		: `/reports/${report.id}`;
 
-	const shareText = `【注意喚起】${report.title || "案件詳細"} | 詐欺情報共有`;
+	const shareText = `【注意喚起】${report.title || "通報詳細"} | 詐欺情報共有`;
 	const xShareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
 		text: shareText,
 		url: reportPageUrl,
@@ -82,7 +76,8 @@ export default async function ReportDetailPage({
 		if (score >= 50) return "text-orange-500";
 		return "text-green-500";
 	};
-	const riskScore = report.riskScore ?? 0;
+	const riskScore = report.riskScore;
+	const shouldMaskRiskScore = riskScore === null || riskScore <= 0;
 
 	return (
 		<div className="container py-10 space-y-10">
@@ -92,12 +87,8 @@ export default async function ReportDetailPage({
 					ホーム
 				</Link>
 				<span>/</span>
-				<Link href="/reports" className="hover:text-foreground">
-					案件一覧
-				</Link>
-				<span>/</span>
 				<span className="text-foreground font-medium truncate max-w-[200px]">
-					{report.title || "案件詳細"}
+					{report.title || "通報詳細"}
 				</span>
 			</nav>
 
@@ -131,9 +122,13 @@ export default async function ReportDetailPage({
 									リスクスコア
 								</span>
 								<span
-									className={`text-3xl font-black ${getRiskColor(riskScore)}`}
+									className={`text-3xl font-black ${
+										shouldMaskRiskScore
+											? "text-muted-foreground"
+											: getRiskColor(riskScore)
+									}`}
 								>
-									{riskScore}
+									{shouldMaskRiskScore ? "-" : riskScore}
 								</span>
 							</div>
 							<div className="flex-1 space-y-1">
@@ -144,7 +139,7 @@ export default async function ReportDetailPage({
 									</span>
 								</div>
 								<p className="text-sm text-muted-foreground">
-									この案件は現在、
+									この通報は現在、
 									{report.status?.label || "システムによる自動調査"}の状態です。
 								</p>
 							</div>
@@ -159,8 +154,7 @@ export default async function ReportDetailPage({
 								<label className="text-xs font-bold text-muted-foreground uppercase">
 									対象のURL
 								</label>
-								<div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 font-mono text-sm break-all">
-									<ExternalLink className="h-4 w-4 shrink-0" />
+								<div className="p-3 rounded-lg bg-muted/50 font-mono text-sm break-all">
 									{report.url}
 								</div>
 							</div>
