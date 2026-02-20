@@ -13,12 +13,15 @@ async function getAnnouncements() {
 	cacheLife({ revalidate: 300 });
 
 	return prisma.announcement.findMany({
+		where: {
+			isPublished: true,
+		},
 		include: {
 			tags: {
 				include: { tag: true },
 			},
 		},
-		orderBy: { createdAt: "desc" },
+		orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
 	});
 }
 
