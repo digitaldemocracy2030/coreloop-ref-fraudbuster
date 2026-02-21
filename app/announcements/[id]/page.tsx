@@ -15,8 +15,8 @@ async function getAnnouncementById(id: string) {
 	cacheTag("announcements");
 	cacheLife({ revalidate: 300 });
 
-	return prisma.announcement.findUnique({
-		where: { id },
+	return prisma.announcement.findFirst({
+		where: { id, isPublished: true },
 		include: {
 			tags: {
 				include: { tag: true },
