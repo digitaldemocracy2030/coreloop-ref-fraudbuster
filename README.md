@@ -53,3 +53,8 @@ Set runtime environment variables in the Vercel Project settings.
 - `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`)
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_REPORT_SCREENSHOT_BUCKET` (optional, default: `report-screenshots`)
+
+## API Documentation (Swagger)
+
+- Swagger UI: `/api-docs`
+- OpenAPI JSON: `/api/openapi`
