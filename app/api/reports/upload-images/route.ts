@@ -3,7 +3,11 @@ import {
 	badRequestResponse,
 	errorResponse,
 	successResponse,
+	getClientIp,
+	verifyTurnstileToken,
+	verifyReportSessionToken,
 } from "@/lib/api-utils";
+import { fileTypeFromBuffer } from "file-type";
 
 const MAX_UPLOAD_FILE_COUNT = 5;
 const MAX_UPLOAD_FILE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -36,15 +40,6 @@ function resolveSupabaseProjectUrl(): string | null {
 	}
 }
 
-function createStorageObjectPath(contentType: string): string {
-	const extension = ALLOWED_CONTENT_TYPES.get(contentType) ?? "bin";
-	const now = new Date();
-	const year = now.getUTCFullYear();
-	const month = String(now.getUTCMonth() + 1).padStart(2, "0");
-	const day = String(now.getUTCDate()).padStart(2, "0");
-	return `reports/${year}/${month}/${day}/${randomUUID()}.${extension}`;
-}
-
 function buildStorageObjectUrl(
 	supabaseUrl: string,
 	bucket: string,
@@ -75,13 +70,15 @@ async function uploadToStorage({
 	bucket,
 	serviceRoleKey,
 	supabaseUrl,
+	filePath,
 }: {
 	file: File;
 	bucket: string;
 	serviceRoleKey: string;
 	supabaseUrl: string;
+	filePath: string;
 }): Promise<UploadedScreenshot> {
-	const objectPath = createStorageObjectPath(file.type);
+	const objectPath = filePath;
 	const uploadUrl = buildStorageObjectUrl(
 		supabaseUrl,
 		bucket,
@@ -163,6 +160,45 @@ export async function POST(request: Request) {
 
 		const formData = await request.formData();
 		const rawFiles = formData.getAll("files");
+		const turnstileToken = formData.get("turnstileToken");
+		const reportSessionToken = formData.get("reportSessionToken");
+
+		if (typeof turnstileToken !== "string" || !turnstileToken.trim()) {
+			return badRequestResponse("Turnstileトークンが未指定です。");
+		}
+		if (typeof reportSessionToken !== "string" || !reportSessionToken.trim()) {
+			return badRequestResponse("レポートセッショントークンが未指定です。");
+		}
+
+		// Verify Report Session Token
+		const sessionPayload = verifyReportSessionToken(reportSessionToken.trim());
+		if (!sessionPayload) {
+			return errorResponse(
+				"レポートセッションが無効、または期限切れです。フォームを再読み込みしてください。",
+				401,
+			);
+		}
+
+		// Verify Turnstile Token
+		const clientIp = getClientIp(request);
+		const turnstileResult = await verifyTurnstileToken(
+			turnstileToken.trim(),
+			clientIp,
+		);
+		if (!turnstileResult.success) {
+			console.error(
+				"Turnstile verification rejected",
+				turnstileResult.errorCodes,
+			);
+			const isServerMisconfigured =
+				turnstileResult.errorCodes.includes("missing-secret-key");
+			return errorResponse(
+				isServerMisconfigured
+					? "スパム対策設定エラーです。管理者へお問い合わせください。"
+					: "スパム対策チェックに失敗しました。再試行してください。",
+				isServerMisconfigured ? 503 : 403,
+			);
+		}
 
 		if (rawFiles.length === 0) {
 			return badRequestResponse("アップロードする画像を選択してください。");
@@ -189,16 +225,31 @@ export async function POST(request: Request) {
 			if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
 				return badRequestResponse("各ファイルは5MB以下にしてください。");
 			}
+
+			// Magic byte check
+			const buffer = await file.arrayBuffer();
+			const detectedType = await fileTypeFromBuffer(buffer);
+			if (!detectedType || !ALLOWED_CONTENT_TYPES.has(detectedType.mime)) {
+				return badRequestResponse(
+					"不正なファイル形式です。JPG または PNG のみ添付できます。",
+				);
+			}
 		}
 
 		const uploadedFiles: UploadedScreenshot[] = [];
 		try {
 			for (const file of files) {
+				const extension = file.name.split(".").pop() || "png";
+				const fileName = `${randomUUID()}.${extension}`;
+				// セッションIDごとにディレクトリを分けることでクリーンアップを容易にする
+				const filePath = `reports/temp/${sessionPayload.sessionId}/${fileName}`;
+
 				const uploadedFile = await uploadToStorage({
 					file,
 					bucket,
 					serviceRoleKey,
 					supabaseUrl,
+					filePath,
 				});
 				uploadedFiles.push(uploadedFile);
 			}

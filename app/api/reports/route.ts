@@ -1,4 +1,3 @@
-import { isIP } from "node:net";
 import { customAlphabet } from "nanoid";
 import { revalidateTag } from "next/cache";
 import type { NextRequest } from "next/server";
@@ -6,6 +5,9 @@ import {
 	badRequestResponse,
 	errorResponse,
 	successResponse,
+	getClientIp,
+	verifyTurnstileToken,
+	verifyReportSessionToken,
 } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import type {
@@ -38,8 +40,7 @@ const PREVIEW_FETCH_TIMEOUT_MS = 6_000;
 const MAX_PREVIEW_CONTENT_LENGTH = 3_000_000;
 const PREVIEW_USER_AGENT =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
-const TURNSTILE_VERIFY_ENDPOINT =
-	"https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
 const MAX_SCREENSHOT_COUNT = 5;
 const REPORT_SCREENSHOT_BUCKET =
 	process.env.SUPABASE_REPORT_SCREENSHOT_BUCKET?.trim() || "report-screenshots";
@@ -49,11 +50,6 @@ const createReportId = customAlphabet(
 	"0123456789abcdefghijklmnopqrstuvwxyz",
 	12,
 );
-
-type TurnstileVerificationResult = {
-	success: boolean;
-	errorCodes: string[];
-};
 
 type ReportLinkPreview = {
 	title: string | null;
@@ -97,36 +93,6 @@ function isValidScreenshotPublicUrl(value: string): boolean {
 	} catch {
 		return false;
 	}
-}
-
-function normalizeIp(value: string | null): string | null {
-	if (!value) return null;
-	const trimmed = value.trim();
-	if (!trimmed) return null;
-	if (isIP(trimmed)) return trimmed;
-
-	const ipv4WithPort = trimmed.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/);
-	if (ipv4WithPort && isIP(ipv4WithPort[1])) {
-		return ipv4WithPort[1];
-	}
-
-	const ipv6WithPort = trimmed.match(/^\[([^\]]+)\](?::\d+)?$/);
-	if (ipv6WithPort && isIP(ipv6WithPort[1])) {
-		return ipv6WithPort[1];
-	}
-
-	return null;
-}
-
-function getClientIp(request: NextRequest): string | null {
-	const forwardedFor = request.headers.get("x-forwarded-for");
-	if (forwardedFor) {
-		const first = forwardedFor.split(",")[0] ?? "";
-		const normalized = normalizeIp(first);
-		if (normalized) return normalized;
-	}
-
-	return normalizeIp(request.headers.get("x-real-ip"));
 }
 
 function maybeCleanupRateLimitStore(now: number) {
@@ -178,55 +144,6 @@ function checkAndRecordSubmission(key: string): {
 	rateLimitStore.set(key, timestamps);
 
 	return { allowed: true };
-}
-
-async function verifyTurnstileToken(
-	token: string,
-	clientIp: string | null,
-): Promise<TurnstileVerificationResult> {
-	const secretKey = process.env.TURNSTILE_SECRET_KEY;
-	if (!secretKey) {
-		console.error("TURNSTILE_SECRET_KEY is not set");
-		return { success: false, errorCodes: ["missing-secret-key"] };
-	}
-
-	const body = new URLSearchParams({
-		secret: secretKey,
-		response: token,
-	});
-	if (clientIp) {
-		body.set("remoteip", clientIp);
-	}
-
-	try {
-		const response = await fetch(TURNSTILE_VERIFY_ENDPOINT, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/x-www-form-urlencoded",
-			},
-			body: body.toString(),
-			cache: "no-store",
-		});
-
-		if (!response.ok) {
-			return { success: false, errorCodes: ["turnstile-http-error"] };
-		}
-
-		const payload = (await response.json()) as {
-			success?: boolean;
-			"error-codes"?: string[];
-		};
-
-		return {
-			success: payload.success === true,
-			errorCodes: Array.isArray(payload["error-codes"])
-				? payload["error-codes"]
-				: [],
-		};
-	} catch (error) {
-		console.error("Turnstile verification failed:", error);
-		return { success: false, errorCodes: ["turnstile-request-failed"] };
-	}
 }
 
 function extractAttributeValue(tag: string, attribute: string): string | null {
@@ -673,6 +590,10 @@ export async function POST(request: NextRequest) {
 			typeof body.spamTrap === "string" ? body.spamTrap.trim() : "";
 		const formStartedAt =
 			typeof body.formStartedAt === "number" ? body.formStartedAt : Number.NaN;
+		const reportSessionToken =
+			typeof body.reportSessionToken === "string"
+				? body.reportSessionToken.trim()
+				: "";
 		const rawScreenshotUrls = body.screenshotUrls;
 		if (
 			typeof rawScreenshotUrls !== "undefined" &&
@@ -728,14 +649,26 @@ export async function POST(request: NextRequest) {
 			return successResponse({ ignored: true }, 201);
 		}
 
-		if (!turnstileToken) {
-			return badRequestResponse("Turnstileトークンが未指定です");
-		}
-
 		if (!Number.isFinite(formStartedAt)) {
 			return badRequestResponse("送信情報が不足しています");
 		}
 
+		if (!reportSessionToken) {
+			return badRequestResponse("レポートセッショントークンが未指定です");
+		}
+
+		// Verify Report Session Token
+		const sessionPayload = verifyReportSessionToken(reportSessionToken);
+		if (!sessionPayload) {
+			return errorResponse(
+				"レポートセッションが無効、または期限切れです。フォームを再読み込みしてください。",
+				401,
+			);
+		}
+
+		if (!turnstileToken) {
+			return badRequestResponse("Turnstileトークンが未指定です");
+		}
 		if (Date.now() - formStartedAt < MIN_FORM_COMPLETION_MS) {
 			return errorResponse(
 				"送信が速すぎます。内容を確認してから再度お試しください。",

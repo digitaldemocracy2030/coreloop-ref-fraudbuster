@@ -101,6 +101,7 @@ export default function NewReportPage() {
 	const [turnstileWidgetId, setTurnstileWidgetId] = React.useState<
 		string | null
 	>(null);
+	const [reportSessionToken, setReportSessionToken] = React.useState("");
 	const [loading, setLoading] = React.useState(false);
 	const [screenshots, setScreenshots] = React.useState<ScreenshotAttachment[]>(
 		[],
@@ -130,6 +131,23 @@ export default function NewReportPage() {
 	React.useEffect(() => {
 		screenshotsRef.current = screenshots;
 	}, [screenshots]);
+
+	React.useEffect(() => {
+		const fetchSession = async () => {
+			try {
+				const response = await fetch("/api/reports/session", {
+					method: "POST",
+				});
+				if (response.ok) {
+					const data = (await response.json()) as { token: string };
+					setReportSessionToken(data.token);
+				}
+			} catch (error) {
+				console.error("Failed to fetch report session", error);
+			}
+		};
+		fetchSession();
+	}, []);
 
 	React.useEffect(() => {
 		return () => {
@@ -242,6 +260,8 @@ export default function NewReportPage() {
 		for (const screenshot of screenshots) {
 			uploadFormData.append("files", screenshot.file, screenshot.file.name);
 		}
+		uploadFormData.append("turnstileToken", turnstileToken);
+		uploadFormData.append("reportSessionToken", reportSessionToken);
 
 		const uploadResponse = await fetch("/api/reports/upload-images", {
 			method: "POST",
@@ -275,7 +295,7 @@ export default function NewReportPage() {
 		}
 
 		return uploadedUrls;
-	}, [screenshots]);
+	}, [screenshots, turnstileToken, reportSessionToken]);
 
 	React.useEffect(() => {
 		if (step !== "verify") return;
@@ -384,6 +404,7 @@ export default function NewReportPage() {
 					categoryId: formData.categoryId,
 					formStartedAt: formStartedAtRef.current,
 					turnstileToken,
+					reportSessionToken,
 					spamTrap: formData.spamTrap,
 					screenshotUrls,
 				}),

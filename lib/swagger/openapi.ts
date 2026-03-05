@@ -387,6 +387,45 @@ export function createOpenApiDocument(origin: string): OpenApiDocument {
 						imageUrl: { type: "string", format: "uri" },
 					},
 				},
+				ReportDetailImage: {
+					type: "object",
+					required: ["id", "imageUrl", "displayOrder", "createdAt"],
+					properties: {
+						id: { type: "string" },
+						imageUrl: { type: "string", format: "uri" },
+						displayOrder: { type: "integer", nullable: true },
+						createdAt: {
+							type: "string",
+							format: "date-time",
+							nullable: true,
+						},
+					},
+				},
+				ReportTimelineAdmin: {
+					type: "object",
+					required: ["name"],
+					properties: {
+						name: { type: "string", nullable: true },
+					},
+				},
+				ReportTimelineItem: {
+					type: "object",
+					required: ["id", "actionLabel", "description", "occurredAt", "admin"],
+					properties: {
+						id: { type: "string" },
+						actionLabel: { type: "string" },
+						description: { type: "string", nullable: true },
+						occurredAt: {
+							type: "string",
+							format: "date-time",
+							nullable: true,
+						},
+						admin: {
+							allOf: [{ $ref: "#/components/schemas/ReportTimelineAdmin" }],
+							nullable: true,
+						},
+					},
+				},
 				ReportSummary: {
 					type: "object",
 					required: [
@@ -493,9 +532,51 @@ export function createOpenApiDocument(origin: string): OpenApiDocument {
 				},
 				ReportDetailResponse: {
 					type: "object",
-					description:
-						"Prisma の report 詳細。platform/category/status/images/timelines を含みます。",
-					additionalProperties: true,
+					required: [
+						"id",
+						"url",
+						"title",
+						"description",
+						"createdAt",
+						"riskScore",
+						"platform",
+						"category",
+						"status",
+						"images",
+						"timelines",
+					],
+					properties: {
+						id: { type: "string" },
+						url: { type: "string", format: "uri" },
+						title: { type: "string", nullable: true },
+						description: { type: "string", nullable: true },
+						createdAt: {
+							type: "string",
+							format: "date-time",
+							nullable: true,
+						},
+						riskScore: { type: "integer", nullable: true },
+						platform: {
+							allOf: [{ $ref: "#/components/schemas/PlatformRef" }],
+							nullable: true,
+						},
+						category: {
+							allOf: [{ $ref: "#/components/schemas/CategoryRef" }],
+							nullable: true,
+						},
+						status: {
+							allOf: [{ $ref: "#/components/schemas/StatusRef" }],
+							nullable: true,
+						},
+						images: {
+							type: "array",
+							items: { $ref: "#/components/schemas/ReportDetailImage" },
+						},
+						timelines: {
+							type: "array",
+							items: { $ref: "#/components/schemas/ReportTimelineItem" },
+						},
+					},
 				},
 				UploadedScreenshot: {
 					type: "object",
