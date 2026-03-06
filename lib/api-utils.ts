@@ -32,9 +32,20 @@ export type ReportSessionPayload = {
 	iat: number;
 };
 
-const SESSION_SECRET =
-	process.env.REPORT_SESSION_SECRET || "default_secret_for_dev_only";
+const DEV_FALLBACK_REPORT_SESSION_SECRET =
+	"development-only-report-session-secret-change-me";
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function resolveReportSessionSecret(): string {
+	const secret = process.env.REPORT_SESSION_SECRET?.trim();
+	if (secret) return secret;
+	if (process.env.NODE_ENV !== "production") {
+		return DEV_FALLBACK_REPORT_SESSION_SECRET;
+	}
+	throw new Error("REPORT_SESSION_SECRET is not set.");
+}
+
+const SESSION_SECRET = resolveReportSessionSecret();
 
 export function createReportSessionToken(sessionId: string): string {
 	const payload: ReportSessionPayload = {
