@@ -3,8 +3,6 @@ import {
 	badRequestResponse,
 	errorResponse,
 	successResponse,
-	getClientIp,
-	verifyTurnstileToken,
 	verifyReportSessionToken,
 } from "@/lib/api-utils";
 import { fileTypeFromBuffer } from "file-type";
@@ -169,12 +167,8 @@ export async function POST(request: Request) {
 
 		const formData = await request.formData();
 		const rawFiles = formData.getAll("files");
-		const turnstileToken = formData.get("turnstileToken");
 		const reportSessionToken = formData.get("reportSessionToken");
 
-		if (typeof turnstileToken !== "string" || !turnstileToken.trim()) {
-			return badRequestResponse("Turnstileトークンが未指定です。");
-		}
 		if (typeof reportSessionToken !== "string" || !reportSessionToken.trim()) {
 			return badRequestResponse("レポートセッショントークンが未指定です。");
 		}
@@ -185,27 +179,6 @@ export async function POST(request: Request) {
 			return errorResponse(
 				"レポートセッションが無効、または期限切れです。フォームを再読み込みしてください。",
 				401,
-			);
-		}
-
-		// Verify Turnstile Token
-		const clientIp = getClientIp(request);
-		const turnstileResult = await verifyTurnstileToken(
-			turnstileToken.trim(),
-			clientIp,
-		);
-		if (!turnstileResult.success) {
-			console.error(
-				"Turnstile verification rejected",
-				turnstileResult.errorCodes,
-			);
-			const isServerMisconfigured =
-				turnstileResult.errorCodes.includes("missing-secret-key");
-			return errorResponse(
-				isServerMisconfigured
-					? "スパム対策設定エラーです。管理者へお問い合わせください。"
-					: "スパム対策チェックに失敗しました。再試行してください。",
-				isServerMisconfigured ? 503 : 403,
 			);
 		}
 

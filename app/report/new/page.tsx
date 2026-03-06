@@ -276,7 +276,6 @@ export default function NewReportPage() {
 		for (const screenshot of screenshots) {
 			uploadFormData.append("files", screenshot.file, screenshot.file.name);
 		}
-		uploadFormData.append("turnstileToken", turnstileToken);
 		uploadFormData.append("reportSessionToken", reportSessionToken);
 
 		const uploadResponse = await fetch("/api/reports/upload-images", {
@@ -311,7 +310,7 @@ export default function NewReportPage() {
 		}
 
 		return uploadedUrls;
-	}, [screenshots, turnstileToken, reportSessionToken]);
+	}, [screenshots, reportSessionToken]);
 
 	React.useEffect(() => {
 		if (step !== "verify") return;
