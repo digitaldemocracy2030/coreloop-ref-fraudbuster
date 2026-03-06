@@ -1,10 +1,10 @@
-# Anti-Fraud Crowdsourcing Platform (参考プロダクト)
+# Anti-Fraud
 
 SNSやメッセージアプリ、不審なURLなどのネット詐欺情報を収集・共有・検索するためのプラットフォームです。
 
 ## 主な機能
 
-### 1. 詐欺情報の検索・閲覧
+### 1. 詐欺と疑わしい情報の検索・閲覧
 - **インクリメンタル検索**: URLやキーワードで疑わしい案件を即座に検索可能。
 - **カテゴリ別閲覧**: 投資詐欺、フィッシング、ロマンス詐欺などの手口別に一覧表示。
 - **リスク判定**: 各案件に対して「詐欺確定」「高リスク」「調査中」などのバッジを表示。
@@ -44,15 +44,6 @@ pnpm dev
 
 - `pull_request` to `main`: run CI (`pnpm lint`, `pnpm build`) and deploy Preview to Vercel
 - `push` to `main`: run CI and deploy Production to Vercel
-
-Set runtime environment variables in the Vercel Project settings.
-
-- `DATABASE_URL`
-- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
-- `TURNSTILE_SECRET_KEY`
-- `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`)
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_REPORT_SCREENSHOT_BUCKET` (optional, default: `report-screenshots`)
 
 ## API Documentation (Swagger)
 

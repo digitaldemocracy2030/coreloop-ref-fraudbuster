@@ -8,14 +8,21 @@ import {
 	verifyReportSessionToken,
 } from "@/lib/api-utils";
 import { fileTypeFromBuffer } from "file-type";
+import {
+	ALLOWED_REPORT_IMAGE_FORMATS_LABEL,
+	canonicalizeImageExtension,
+	canonicalizeImageMimeType,
+	extractFileExtension,
+	getCanonicalImageExtensionFromMimeType,
+	getCanonicalMimeTypeFromImageExtension,
+	isAllowedImageExtension,
+	isAllowedImageMimeType,
+	MAX_REPORT_IMAGE_FILE_COUNT,
+	MAX_REPORT_IMAGE_FILE_SIZE_BYTES,
+	normalizeImageMimeType,
+} from "@/lib/report-image-upload";
 
-const MAX_UPLOAD_FILE_COUNT = 5;
-const MAX_UPLOAD_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_STORAGE_BUCKET = "report-screenshots";
-const ALLOWED_CONTENT_TYPES = new Map<string, string>([
-	["image/jpeg", "jpg"],
-	["image/png", "png"],
-]);
 
 type UploadedScreenshot = {
 	path: string;
@@ -71,12 +78,14 @@ async function uploadToStorage({
 	serviceRoleKey,
 	supabaseUrl,
 	filePath,
+	contentType,
 }: {
 	file: File;
 	bucket: string;
 	serviceRoleKey: string;
 	supabaseUrl: string;
 	filePath: string;
+	contentType: string;
 }): Promise<UploadedScreenshot> {
 	const objectPath = filePath;
 	const uploadUrl = buildStorageObjectUrl(
@@ -91,7 +100,7 @@ async function uploadToStorage({
 		headers: {
 			Authorization: `Bearer ${serviceRoleKey}`,
 			apikey: serviceRoleKey,
-			"Content-Type": file.type,
+			"Content-Type": contentType,
 			"x-upsert": "false",
 			"cache-control": "3600",
 		},
@@ -109,7 +118,7 @@ async function uploadToStorage({
 	return {
 		path: objectPath,
 		publicUrl: buildStorageObjectUrl(supabaseUrl, bucket, objectPath, true),
-		contentType: file.type,
+		contentType,
 		size: file.size,
 	};
 }
@@ -203,7 +212,7 @@ export async function POST(request: Request) {
 		if (rawFiles.length === 0) {
 			return badRequestResponse("アップロードする画像を選択してください。");
 		}
-		if (rawFiles.length > MAX_UPLOAD_FILE_COUNT) {
+		if (rawFiles.length > MAX_REPORT_IMAGE_FILE_COUNT) {
 			return badRequestResponse("スクリーンショットは最大5枚までです。");
 		}
 
@@ -215,41 +224,73 @@ export async function POST(request: Request) {
 			files.push(rawFile);
 		}
 
+		const validatedFiles: Array<{
+			file: File;
+			contentType: string;
+			extension: string;
+		}> = [];
+
 		for (const file of files) {
-			if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
-				return badRequestResponse("JPG または PNG のみ添付できます。");
+			const normalizedMimeType = normalizeImageMimeType(file.type);
+			const fileExtension = extractFileExtension(file.name);
+			const hasAllowedMimeType =
+				normalizedMimeType.length > 0 &&
+				isAllowedImageMimeType(normalizedMimeType);
+			const hasAllowedExtension = isAllowedImageExtension(fileExtension);
+
+			if (!hasAllowedMimeType && !hasAllowedExtension) {
+				return badRequestResponse(
+					`${ALLOWED_REPORT_IMAGE_FORMATS_LABEL} のみ添付できます。`,
+				);
 			}
 			if (file.size <= 0) {
 				return badRequestResponse("空のファイルはアップロードできません。");
 			}
-			if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+			if (file.size > MAX_REPORT_IMAGE_FILE_SIZE_BYTES) {
 				return badRequestResponse("各ファイルは5MB以下にしてください。");
 			}
 
 			// Magic byte check
 			const buffer = await file.arrayBuffer();
 			const detectedType = await fileTypeFromBuffer(buffer);
-			if (!detectedType || !ALLOWED_CONTENT_TYPES.has(detectedType.mime)) {
+			const detectedMimeType = canonicalizeImageMimeType(detectedType?.mime);
+			if (!detectedMimeType) {
 				return badRequestResponse(
-					"不正なファイル形式です。JPG または PNG のみ添付できます。",
+					`不正なファイル形式です。${ALLOWED_REPORT_IMAGE_FORMATS_LABEL} のみ添付できます。`,
 				);
 			}
+
+			const detectedExtension = canonicalizeImageExtension(detectedType?.ext);
+			const declaredCanonicalMimeType =
+				getCanonicalMimeTypeFromImageExtension(fileExtension) ??
+				canonicalizeImageMimeType(normalizedMimeType);
+			const extension =
+				detectedExtension ??
+				getCanonicalImageExtensionFromMimeType(declaredCanonicalMimeType) ??
+				getCanonicalImageExtensionFromMimeType(detectedMimeType) ??
+				"jpg";
+
+			validatedFiles.push({
+				file,
+				contentType: detectedMimeType,
+				extension,
+			});
 		}
 
 		const uploadedFiles: UploadedScreenshot[] = [];
 		try {
-			for (const file of files) {
-				const extension = file.name.split(".").pop() || "png";
-				const fileName = `${randomUUID()}.${extension}`;
+			for (const validatedFile of validatedFiles) {
+				const fileName = `${randomUUID()}.${validatedFile.extension}`;
 				// セッションIDごとにディレクトリを分けることでクリーンアップを容易にする
 				const filePath = `reports/temp/${sessionPayload.sessionId}/${fileName}`;
 
 				const uploadedFile = await uploadToStorage({
-					file,
+					file: validatedFile.file,
 					bucket,
 					serviceRoleKey,
 					supabaseUrl,
 					filePath,
+					contentType: validatedFile.contentType,
 				});
 				uploadedFiles.push(uploadedFile);
 			}

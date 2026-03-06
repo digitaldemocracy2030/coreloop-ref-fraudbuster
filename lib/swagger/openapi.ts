@@ -256,7 +256,7 @@ export function createOpenApiDocument(origin: string): OpenApiDocument {
 					tags: ["Uploads"],
 					summary: "スクリーンショット画像をアップロード",
 					description:
-						"multipart/form-data で files を複数送信します。最大5件、各5MB、JPEG/PNGのみ対応です。",
+						"multipart/form-data で files を複数送信します。最大5件、各5MB、JPG/JPEG/PNG/GIF/WEBP に対応しています。",
 					requestBody: {
 						required: true,
 						content: {

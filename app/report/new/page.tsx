@@ -37,6 +37,16 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	ALLOWED_REPORT_IMAGE_FORMATS_LABEL,
+	extractFileExtension,
+	isAllowedImageExtension,
+	isAllowedImageMimeType,
+	MAX_REPORT_IMAGE_FILE_COUNT,
+	MAX_REPORT_IMAGE_FILE_SIZE_BYTES,
+	normalizeImageMimeType,
+	REPORT_IMAGE_INPUT_ACCEPT,
+} from "@/lib/report-image-upload";
 
 type TurnstileRenderOptions = {
 	sitekey: string;
@@ -59,9 +69,6 @@ type WindowWithTurnstile = Window & { turnstile?: TurnstileApi };
 
 type Step = "basic" | "details" | "verify" | "complete";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_SCREENSHOT_FILES = 5;
-const MAX_SCREENSHOT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_SCREENSHOT_CONTENT_TYPES = new Set(["image/jpeg", "image/png"]);
 
 type ScreenshotAttachment = {
 	id: string;
@@ -174,7 +181,7 @@ export default function NewReportPage() {
 			const files = Array.from(incomingFiles);
 			if (files.length === 0) return;
 
-			const availableSlots = MAX_SCREENSHOT_FILES - screenshots.length;
+			const availableSlots = MAX_REPORT_IMAGE_FILE_COUNT - screenshots.length;
 			if (availableSlots <= 0) {
 				toast.error("スクリーンショットは最大5枚までです。");
 				return;
@@ -182,15 +189,24 @@ export default function NewReportPage() {
 
 			const acceptedFiles: File[] = [];
 			for (const file of files) {
-				if (!ALLOWED_SCREENSHOT_CONTENT_TYPES.has(file.type)) {
-					toast.error(`${file.name} は JPG / PNG のみ添付できます。`);
+				const normalizedMimeType = normalizeImageMimeType(file.type);
+				const fileExtension = extractFileExtension(file.name);
+				const hasAllowedMimeType =
+					normalizedMimeType.length > 0 &&
+					isAllowedImageMimeType(normalizedMimeType);
+				const hasAllowedExtension = isAllowedImageExtension(fileExtension);
+
+				if (!hasAllowedMimeType && !hasAllowedExtension) {
+					toast.error(
+						`${file.name} は ${ALLOWED_REPORT_IMAGE_FORMATS_LABEL} のみ添付できます。`,
+					);
 					continue;
 				}
 				if (file.size <= 0) {
 					toast.error(`${file.name} は空のファイルです。`);
 					continue;
 				}
-				if (file.size > MAX_SCREENSHOT_FILE_SIZE_BYTES) {
+				if (file.size > MAX_REPORT_IMAGE_FILE_SIZE_BYTES) {
 					toast.error(`${file.name} は5MB以下にしてください。`);
 					continue;
 				}
@@ -652,7 +668,7 @@ export default function NewReportPage() {
 							<input
 								ref={screenshotFileInputRef}
 								type="file"
-								accept="image/jpeg,image/png"
+								accept={REPORT_IMAGE_INPUT_ACCEPT}
 								multiple
 								className="hidden"
 								onChange={handleScreenshotFileInputChange}
@@ -678,7 +694,7 @@ export default function NewReportPage() {
 									クリックまたはドラッグ＆ドロップで追加
 								</p>
 								<p className="text-xs text-muted-foreground">
-									最大5枚まで（JPG, PNG / 各5MB）
+									最大5枚まで（{ALLOWED_REPORT_IMAGE_FORMATS_LABEL} / 各5MB）
 								</p>
 							</div>
 							{screenshots.length > 0 ? (
