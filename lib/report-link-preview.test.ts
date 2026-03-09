@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { fetchReportLinkPreview } = await import(
+const { fetchReportLinkPreview, fetchSafeExternalImage } = await import(
 	new URL("./report-link-preview.ts", import.meta.url).href
 );
 
@@ -142,4 +142,96 @@ test("stops after exceeding the redirect hop limit", async () => {
 		"https://public.example/hop-3",
 		"https://public.example/hop-4",
 	]);
+});
+
+test("fetchSafeExternalImage follows a safe redirect chain", async () => {
+	const fetchCalls: string[] = [];
+	const pngBytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
+	const fetchFn: typeof fetch = async (input, init) => {
+		const url = String(input);
+		fetchCalls.push(url);
+		assert.equal(init?.redirect, "manual");
+
+		if (url === "https://public.example/start.png") {
+			return new Response(null, {
+				status: 302,
+				headers: { location: "/final.png" },
+			});
+		}
+
+		if (url === "https://public.example/final.png") {
+			return new Response(pngBytes, {
+				status: 200,
+				headers: { "content-type": "image/png" },
+			});
+		}
+
+		assert.fail(`unexpected fetch to ${url}`);
+	};
+
+	const image = await fetchSafeExternalImage(
+		"https://public.example/start.png",
+		{
+			lookupHostname: createLookupHostname({
+				"public.example": ["93.184.216.34"],
+			}),
+			fetchFn,
+		},
+	);
+
+	assert.ok(image);
+	assert.deepEqual(Array.from(image.buffer), Array.from(pngBytes));
+	assert.equal(image.contentType, "image/png");
+	assert.equal(image.finalUrl, "https://public.example/final.png");
+	assert.deepEqual(fetchCalls, [
+		"https://public.example/start.png",
+		"https://public.example/final.png",
+	]);
+});
+
+test("fetchSafeExternalImage blocks redirects to private targets", async () => {
+	const fetchCalls: string[] = [];
+	const fetchFn: typeof fetch = async (input) => {
+		const url = String(input);
+		fetchCalls.push(url);
+
+		if (url === "https://public.example/start.png") {
+			return new Response(null, {
+				status: 302,
+				headers: { location: "http://127.0.0.1/private.png" },
+			});
+		}
+
+		assert.fail(`unexpected fetch to ${url}`);
+	};
+
+	const image = await fetchSafeExternalImage(
+		"https://public.example/start.png",
+		{
+			lookupHostname: createLookupHostname({
+				"public.example": ["93.184.216.34"],
+			}),
+			fetchFn,
+		},
+	);
+
+	assert.equal(image, null);
+	assert.deepEqual(fetchCalls, ["https://public.example/start.png"]);
+});
+
+test("fetchSafeExternalImage rejects non-image responses", async () => {
+	const fetchFn: typeof fetch = async () =>
+		new Response("<html></html>", {
+			status: 200,
+			headers: { "content-type": "text/html; charset=utf-8" },
+		});
+
+	const image = await fetchSafeExternalImage("https://public.example/file", {
+		lookupHostname: createLookupHostname({
+			"public.example": ["93.184.216.34"],
+		}),
+		fetchFn,
+	});
+
+	assert.equal(image, null);
 });

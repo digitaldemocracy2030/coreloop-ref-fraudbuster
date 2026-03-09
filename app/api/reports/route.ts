@@ -9,8 +9,17 @@ import {
 	verifyTurnstileToken,
 	verifyReportSessionToken,
 } from "@/lib/api-utils";
+import { getSafeReportImageAbsoluteUrl } from "@/lib/report-image-delivery";
+import {
+	cleanupStoredReportImages,
+	getReportImageStorageBucket,
+	isValidReportImageStorageUrl,
+	resolveSupabaseProjectOrigin,
+	type StoredReportImage,
+} from "@/lib/report-image-storage";
 import { prisma } from "@/lib/prisma";
 import { fetchReportLinkPreview } from "@/lib/report-link-preview";
+import { mirrorReportPreviewThumbnail } from "@/lib/report-thumbnail-ingest";
 import type {
 	ReportSortOrder,
 	ReportSummary,
@@ -39,52 +48,35 @@ const MIN_FORM_COMPLETION_MS = 6 * 1000;
 const rateLimitStore = new Map<string, number[]>();
 
 const MAX_SCREENSHOT_COUNT = 5;
-const REPORT_SCREENSHOT_BUCKET =
-	process.env.SUPABASE_REPORT_SCREENSHOT_BUCKET?.trim() || "report-screenshots";
-const SUPABASE_PROJECT_URL =
-	process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const createReportId = customAlphabet(
 	"0123456789abcdefghijklmnopqrstuvwxyz",
 	12,
 );
 
-function resolveOrigin(value: string): string | null {
-	if (!value) return null;
-	try {
-		const parsed = new URL(value);
-		if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-			return null;
-		}
-		return parsed.origin;
-	} catch {
-		return null;
-	}
+function isPresent<T>(value: T | null): value is T {
+	return value !== null;
 }
 
-const SUPABASE_PROJECT_ORIGIN = resolveOrigin(SUPABASE_PROJECT_URL);
-
 function isValidScreenshotPublicUrl(value: string): boolean {
-	const trimmed = value.trim();
-	if (!trimmed || trimmed.length > 2048) return false;
-	if (!SUPABASE_PROJECT_ORIGIN) return false;
+	return isValidReportImageStorageUrl(value);
+}
 
-	try {
-		const parsed = new URL(trimmed);
-		if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-			return false;
-		}
-		if (parsed.origin !== SUPABASE_PROJECT_ORIGIN) return false;
-
-		const encodedBucket = encodeURIComponent(REPORT_SCREENSHOT_BUCKET);
-		return (
-			parsed.pathname.startsWith(
-				`/storage/v1/object/public/${REPORT_SCREENSHOT_BUCKET}/`,
-			) ||
-			parsed.pathname.startsWith(`/storage/v1/object/public/${encodedBucket}/`)
-		);
-	} catch {
-		return false;
+function toSafeReportResponseImage(
+	image: {
+		id: string;
+		imageUrl: string;
+	},
+	requestUrl: string,
+) {
+	const imageUrl = getSafeReportImageAbsoluteUrl(image, requestUrl);
+	if (!imageUrl) {
+		return null;
 	}
+
+	return {
+		id: image.id,
+		imageUrl,
+	};
 }
 
 function maybeCleanupRateLimitStore(now: number) {
@@ -237,6 +229,9 @@ export async function GET(request: NextRequest) {
 				(report): ReportSummary => ({
 					...report,
 					createdAt: report.createdAt?.toISOString() ?? null,
+					images: report.images
+						.map((image) => toSafeReportResponseImage(image, request.url))
+						.filter(isPresent),
 				}),
 			),
 			nextCursor,
@@ -254,6 +249,9 @@ export async function GET(request: NextRequest) {
  * Create a new report
  */
 export async function POST(request: NextRequest) {
+	let mirroredThumbnail: StoredReportImage | null = null;
+	let reportCreated = false;
+
 	try {
 		const body = await request.json();
 		const url = typeof body.url === "string" ? body.url.trim() : "";
@@ -396,11 +394,26 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
+		const reportId = createReportId();
 		const reportPreview = await fetchReportLinkPreview(url);
+		if (reportPreview.thumbnailUrl) {
+			try {
+				mirroredThumbnail = await mirrorReportPreviewThumbnail({
+					reportId,
+					thumbnailUrl: reportPreview.thumbnailUrl,
+				});
+			} catch (thumbnailError) {
+				console.error(
+					"Failed to ingest external report thumbnail:",
+					thumbnailError,
+				);
+			}
+		}
+
 		const reportImageUrls = Array.from(
 			new Set([
 				...screenshotUrls,
-				...(reportPreview.thumbnailUrl ? [reportPreview.thumbnailUrl] : []),
+				...(mirroredThumbnail ? [mirroredThumbnail.publicUrl] : []),
 			]),
 		);
 		const user = await prisma.user.upsert({
@@ -411,7 +424,7 @@ export async function POST(request: NextRequest) {
 
 		const report = await prisma.report.create({
 			data: {
-				id: createReportId(),
+				id: reportId,
 				userId: user.id,
 				url,
 				title: reportPreview.title ?? title,
@@ -444,6 +457,7 @@ export async function POST(request: NextRequest) {
 				},
 			},
 		});
+		reportCreated = true;
 
 		// Create an initial timeline entry
 		await prisma.reportTimeline.create({
@@ -461,8 +475,31 @@ export async function POST(request: NextRequest) {
 			console.error("Failed to revalidate cache tags:", cacheError);
 		}
 
-		return successResponse(report, 201);
+		return successResponse(
+			{
+				...report,
+				images: report.images
+					.map((image) => toSafeReportResponseImage(image, request.url))
+					.filter(isPresent),
+			},
+			201,
+		);
 	} catch (error) {
+		if (mirroredThumbnail && !reportCreated) {
+			const supabaseOrigin = resolveSupabaseProjectOrigin();
+			const serviceRoleKey =
+				process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
+
+			if (supabaseOrigin && serviceRoleKey) {
+				await cleanupStoredReportImages({
+					files: [mirroredThumbnail],
+					bucket: getReportImageStorageBucket(),
+					serviceRoleKey,
+					supabaseOrigin,
+				});
+			}
+		}
+
 		console.error("Failed to create report:", error);
 		return errorResponse("Internal Server Error");
 	}

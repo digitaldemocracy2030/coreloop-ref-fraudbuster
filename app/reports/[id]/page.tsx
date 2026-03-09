@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/date";
+import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
 import { prisma } from "@/lib/prisma";
 
 async function getReportById(id: string) {
@@ -86,7 +87,7 @@ export default async function ReportDetailPage({
 	};
 	const riskScore = report.riskScore;
 	const shouldMaskRiskScore = riskScore === null || riskScore <= 0;
-	const ogpImageUrl = report.images[0]?.imageUrl ?? null;
+	const ogpImageUrl = getSafeReportImageProxyPath(report.images[0]);
 
 	return (
 		<div className="container py-10 space-y-10">

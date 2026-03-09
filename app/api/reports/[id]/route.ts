@@ -3,8 +3,13 @@ import {
 	notFoundResponse,
 	successResponse,
 } from "@/lib/api-utils";
+import { getSafeReportImageAbsoluteUrl } from "@/lib/report-image-delivery";
 import { prisma } from "@/lib/prisma";
 import type { ReportDetailResponse } from "@/lib/types/api";
+
+function isPresent<T>(value: T | null): value is T {
+	return value !== null;
+}
 
 /**
  * GET /api/reports/[id]
@@ -80,12 +85,21 @@ export async function GET(
 			platform: report.platform,
 			category: report.category,
 			status: report.status,
-			images: report.images.map((image) => ({
-				id: image.id,
-				imageUrl: image.imageUrl,
-				displayOrder: image.displayOrder ?? null,
-				createdAt: image.createdAt?.toISOString() ?? null,
-			})),
+			images: report.images
+				.map((image) => {
+					const imageUrl = getSafeReportImageAbsoluteUrl(image, _request.url);
+					if (!imageUrl) {
+						return null;
+					}
+
+					return {
+						id: image.id,
+						imageUrl,
+						displayOrder: image.displayOrder ?? null,
+						createdAt: image.createdAt?.toISOString() ?? null,
+					};
+				})
+				.filter(isPresent),
 			timelines: report.timelines.map((timeline) => ({
 				id: timeline.id,
 				actionLabel: timeline.actionLabel,

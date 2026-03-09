@@ -3,6 +3,7 @@ import { BlockList, isIP } from "node:net";
 
 const PREVIEW_FETCH_TIMEOUT_MS = 6_000;
 const MAX_PREVIEW_CONTENT_LENGTH = 3_000_000;
+const MAX_PREVIEW_IMAGE_CONTENT_LENGTH = 5 * 1024 * 1024;
 const MAX_PREVIEW_REDIRECTS = 4;
 const PREVIEW_USER_AGENT =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
@@ -324,6 +325,46 @@ function extractThumbnailFromHtml(html: string, pageUrl: URL): string | null {
 	return null;
 }
 
+async function readResponseBuffer(
+	response: Response,
+	maxBytes: number,
+): Promise<Buffer | null> {
+	if (!response.body) {
+		return Buffer.alloc(0);
+	}
+
+	const reader = response.body.getReader();
+	const chunks: Buffer[] = [];
+	let totalBytes = 0;
+
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (!value) continue;
+
+			totalBytes += value.byteLength;
+			if (totalBytes > maxBytes) {
+				await reader.cancel();
+				return null;
+			}
+
+			chunks.push(Buffer.from(value));
+		}
+
+		return Buffer.concat(chunks, totalBytes);
+	} catch {
+		try {
+			await reader.cancel();
+		} catch {
+			// Ignore cancellation failures.
+		}
+		return null;
+	} finally {
+		reader.releaseLock();
+	}
+}
+
 async function fetchPreviewDocument(
 	targetUrl: URL,
 	fetchFn: typeof fetch,
@@ -390,7 +431,15 @@ async function fetchPreviewDocument(
 				return null;
 			}
 
-			const html = await response.text();
+			const htmlBuffer = await readResponseBuffer(
+				response,
+				MAX_PREVIEW_CONTENT_LENGTH,
+			);
+			if (!htmlBuffer) {
+				return null;
+			}
+
+			const html = htmlBuffer.toString("utf8");
 			const contentType = (
 				response.headers.get("content-type") ?? ""
 			).toLowerCase();
@@ -411,6 +460,115 @@ async function fetchPreviewDocument(
 			return null;
 		}
 		console.error("Failed to fetch report preview document:", error);
+		return null;
+	} finally {
+		clearTimeout(timeoutId);
+	}
+}
+
+async function fetchExternalImageResource(
+	targetUrl: URL,
+	fetchFn: typeof fetch,
+	lookupHostname: LookupHostname,
+): Promise<{
+	buffer: Buffer;
+	contentType: string | null;
+	finalUrl: URL;
+} | null> {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(
+		() => controller.abort(),
+		PREVIEW_FETCH_TIMEOUT_MS,
+	);
+
+	try {
+		let currentUrl = targetUrl;
+
+		for (
+			let redirectCount = 0;
+			redirectCount <= MAX_PREVIEW_REDIRECTS;
+			redirectCount += 1
+		) {
+			if (!(await validatePreviewTargetUrl(currentUrl, lookupHostname))) {
+				return null;
+			}
+
+			const response = await fetchFn(currentUrl.toString(), {
+				method: "GET",
+				redirect: "manual",
+				signal: controller.signal,
+				cache: "no-store",
+				headers: {
+					Accept: "image/*,*/*;q=0.8",
+					"Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+					"User-Agent": PREVIEW_USER_AGENT,
+				},
+			});
+
+			if (
+				response.status >= 300 &&
+				response.status < 400 &&
+				response.headers.has("location")
+			) {
+				const location = response.headers.get("location");
+				if (!location) return null;
+
+				const redirectedUrl = parsePublicHttpUrl(
+					new URL(location, currentUrl).toString(),
+				);
+				if (!redirectedUrl) return null;
+
+				currentUrl = redirectedUrl;
+				continue;
+			}
+
+			if (!response.ok) return null;
+
+			const contentLength = Number.parseInt(
+				response.headers.get("content-length") ?? "",
+				10,
+			);
+			if (
+				!Number.isNaN(contentLength) &&
+				contentLength > MAX_PREVIEW_IMAGE_CONTENT_LENGTH
+			) {
+				return null;
+			}
+
+			const contentType = (
+				response.headers.get("content-type") ?? ""
+			).toLowerCase();
+			const normalizedContentType =
+				contentType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+			if (
+				normalizedContentType &&
+				!normalizedContentType.startsWith("image/") &&
+				normalizedContentType !== "application/octet-stream"
+			) {
+				return null;
+			}
+
+			const buffer = await readResponseBuffer(
+				response,
+				MAX_PREVIEW_IMAGE_CONTENT_LENGTH,
+			);
+			if (!buffer || buffer.length === 0) {
+				return null;
+			}
+
+			return {
+				buffer,
+				contentType: normalizedContentType || null,
+				finalUrl: currentUrl,
+			};
+		}
+
+		return null;
+	} catch (error) {
+		if (error instanceof DOMException && error.name === "AbortError") {
+			return null;
+		}
+		console.error("Failed to fetch report preview image:", error);
 		return null;
 	} finally {
 		clearTimeout(timeoutId);
@@ -449,4 +607,35 @@ export async function fetchReportLinkPreview(
 	}
 
 	return { title, thumbnailUrl };
+}
+
+export async function fetchSafeExternalImage(
+	rawUrl: string,
+	dependencies: PreviewDependencies = {},
+): Promise<{
+	buffer: Buffer;
+	contentType: string | null;
+	finalUrl: string;
+} | null> {
+	const fetchFn = dependencies.fetchFn ?? fetch;
+	const lookupHostname = dependencies.lookupHostname ?? defaultLookupHostname;
+	const targetUrl = parsePublicHttpUrl(rawUrl);
+	if (!targetUrl) {
+		return null;
+	}
+
+	const response = await fetchExternalImageResource(
+		targetUrl,
+		fetchFn,
+		lookupHostname,
+	);
+	if (!response) {
+		return null;
+	}
+
+	return {
+		buffer: response.buffer,
+		contentType: response.contentType,
+		finalUrl: response.finalUrl.toString(),
+	};
 }

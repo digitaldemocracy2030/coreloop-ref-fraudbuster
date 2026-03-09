@@ -7,7 +7,6 @@ import {
 	verifyReportSessionToken,
 } from "@/lib/api-utils";
 import { fileTypeFromBuffer } from "file-type";
-import sharp from "sharp";
 import {
 	ALLOWED_REPORT_IMAGE_FORMATS_LABEL,
 	type CanonicalImageExtension,
@@ -22,194 +21,19 @@ import {
 	MAX_REPORT_IMAGE_FILE_SIZE_BYTES,
 	normalizeImageMimeType,
 } from "@/lib/report-image-upload";
+import { reencodeAndSanitizeImage } from "@/lib/report-image-sanitizer";
+import {
+	cleanupStoredReportImages,
+	getReportImageStorageBucket,
+	type StoredReportImage,
+	resolveSupabaseProjectOrigin,
+	uploadReportImageToStorage,
+} from "@/lib/report-image-storage";
 import {
 	checkAndRecordImageUploadRateLimit,
 	checkSessionUploadBudget,
 	recordSessionUploadSuccess,
 } from "@/lib/upload-abuse-guard";
-
-const DEFAULT_STORAGE_BUCKET = "report-screenshots";
-const MAX_REENCODE_INPUT_PIXELS = 40_000_000;
-const JPEG_REENCODE_QUALITY = 85;
-const WEBP_REENCODE_QUALITY = 85;
-
-type UploadedScreenshot = {
-	path: string;
-	publicUrl: string;
-	contentType: string;
-	size: number;
-};
-
-function resolveSupabaseProjectUrl(): string | null {
-	const raw =
-		process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-	if (!raw) return null;
-
-	try {
-		const parsed = new URL(raw);
-		if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-			return null;
-		}
-		return parsed.origin;
-	} catch {
-		return null;
-	}
-}
-
-function buildStorageObjectUrl(
-	supabaseUrl: string,
-	bucket: string,
-	objectPath: string,
-	publicAccess: boolean,
-): string {
-	const encodedBucket = encodeURIComponent(bucket);
-	const encodedObjectPath = objectPath
-		.split("/")
-		.map((segment) => encodeURIComponent(segment))
-		.join("/");
-	const basePath = publicAccess
-		? `/storage/v1/object/public/${encodedBucket}/${encodedObjectPath}`
-		: `/storage/v1/object/${encodedBucket}/${encodedObjectPath}`;
-	return new URL(basePath, supabaseUrl).toString();
-}
-
-async function readResponseText(response: Response): Promise<string> {
-	try {
-		return (await response.text()).slice(0, 500);
-	} catch {
-		return "";
-	}
-}
-
-async function uploadToStorage({
-	bytes,
-	size,
-	bucket,
-	serviceRoleKey,
-	supabaseUrl,
-	filePath,
-	contentType,
-}: {
-	bytes: Buffer;
-	size: number;
-	bucket: string;
-	serviceRoleKey: string;
-	supabaseUrl: string;
-	filePath: string;
-	contentType: string;
-}): Promise<UploadedScreenshot> {
-	const objectPath = filePath;
-	const uploadUrl = buildStorageObjectUrl(
-		supabaseUrl,
-		bucket,
-		objectPath,
-		false,
-	);
-
-	const uploadResponse = await fetch(uploadUrl, {
-		// `Buffer` を明示的に `ArrayBuffer` ベースへ変換し、fetch の BodyInit 型と整合させる
-		body: new Blob([Uint8Array.from(bytes)], { type: contentType }),
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${serviceRoleKey}`,
-			apikey: serviceRoleKey,
-			"Content-Type": contentType,
-			"x-upsert": "false",
-			"cache-control": "3600",
-		},
-		cache: "no-store",
-	});
-
-	if (!uploadResponse.ok) {
-		const reason = await readResponseText(uploadResponse);
-		throw new Error(
-			reason || `Storage upload failed with ${uploadResponse.status}`,
-		);
-	}
-
-	return {
-		path: objectPath,
-		publicUrl: buildStorageObjectUrl(supabaseUrl, bucket, objectPath, true),
-		contentType,
-		size,
-	};
-}
-
-async function cleanupUploadedFiles({
-	files,
-	bucket,
-	serviceRoleKey,
-	supabaseUrl,
-}: {
-	files: UploadedScreenshot[];
-	bucket: string;
-	serviceRoleKey: string;
-	supabaseUrl: string;
-}) {
-	await Promise.allSettled(
-		files.map((file) =>
-			fetch(buildStorageObjectUrl(supabaseUrl, bucket, file.path, false), {
-				method: "DELETE",
-				headers: {
-					Authorization: `Bearer ${serviceRoleKey}`,
-					apikey: serviceRoleKey,
-				},
-				cache: "no-store",
-			}),
-		),
-	);
-}
-
-async function reencodeAndSanitizeImage({
-	inputBuffer,
-	targetExtension,
-}: {
-	inputBuffer: Buffer;
-	targetExtension: CanonicalImageExtension;
-}): Promise<{
-	buffer: Buffer;
-	contentType: string;
-	extension: CanonicalImageExtension;
-}> {
-	const image = sharp(inputBuffer, {
-		animated: true,
-		failOn: "error",
-		limitInputPixels: MAX_REENCODE_INPUT_PIXELS,
-	});
-	const normalized = image.rotate();
-
-	if (targetExtension === "jpg") {
-		return {
-			buffer: await normalized
-				.jpeg({ quality: JPEG_REENCODE_QUALITY, mozjpeg: true })
-				.toBuffer(),
-			contentType: "image/jpeg",
-			extension: "jpg",
-		};
-	}
-	if (targetExtension === "png") {
-		return {
-			buffer: await normalized.png({ compressionLevel: 9 }).toBuffer(),
-			contentType: "image/png",
-			extension: "png",
-		};
-	}
-	if (targetExtension === "webp") {
-		return {
-			buffer: await normalized
-				.webp({ quality: WEBP_REENCODE_QUALITY })
-				.toBuffer(),
-			contentType: "image/webp",
-			extension: "webp",
-		};
-	}
-
-	return {
-		buffer: await normalized.gif().toBuffer(),
-		contentType: "image/gif",
-		extension: "gif",
-	};
-}
 
 /**
  * POST /api/reports/upload-images
@@ -217,11 +41,9 @@ async function reencodeAndSanitizeImage({
  */
 export async function POST(request: Request) {
 	try {
-		const supabaseUrl = resolveSupabaseProjectUrl();
+		const supabaseOrigin = resolveSupabaseProjectOrigin();
 		const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
-		const bucket =
-			process.env.SUPABASE_REPORT_SCREENSHOT_BUCKET?.trim() ||
-			DEFAULT_STORAGE_BUCKET;
+		const bucket = getReportImageStorageBucket();
 		const clientIp = getClientIp(request);
 		const userAgent = request.headers.get("user-agent")?.trim() || "unknown";
 		const rateLimitKey = clientIp
@@ -244,7 +66,7 @@ export async function POST(request: Request) {
 			);
 		}
 
-		if (!supabaseUrl || !serviceRoleKey) {
+		if (!supabaseOrigin || !serviceRoleKey) {
 			return errorResponse(
 				"Storageの設定が不足しています。管理者へお問い合わせください。",
 				503,
@@ -374,30 +196,30 @@ export async function POST(request: Request) {
 			});
 		}
 
-		const uploadedFiles: UploadedScreenshot[] = [];
+		const uploadedFiles: StoredReportImage[] = [];
 		try {
 			for (const validatedFile of validatedFiles) {
 				const fileName = `${randomUUID()}.${validatedFile.extension}`;
 				// セッションIDごとにディレクトリを分けることでクリーンアップを容易にする
 				const filePath = `reports/temp/${sessionPayload.sessionId}/${fileName}`;
 
-				const uploadedFile = await uploadToStorage({
+				const uploadedFile = await uploadReportImageToStorage({
 					bytes: validatedFile.bytes,
 					size: validatedFile.size,
 					bucket,
 					serviceRoleKey,
-					supabaseUrl,
+					supabaseOrigin,
 					filePath,
 					contentType: validatedFile.contentType,
 				});
 				uploadedFiles.push(uploadedFile);
 			}
 		} catch (uploadError) {
-			await cleanupUploadedFiles({
+			await cleanupStoredReportImages({
 				files: uploadedFiles,
 				bucket,
 				serviceRoleKey,
-				supabaseUrl,
+				supabaseOrigin,
 			});
 			throw uploadError;
 		}
