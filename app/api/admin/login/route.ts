@@ -3,6 +3,8 @@ import {
 	authenticateAdminCredentials,
 	setAdminSessionOnResponse,
 } from "@/lib/admin-auth";
+import { evaluateAdminLoginAttempt } from "@/lib/admin-login-guard";
+import { getClientIp } from "@/lib/api-utils";
 
 function toLoginRedirect(
 	request: NextRequest,
@@ -12,6 +14,19 @@ function toLoginRedirect(
 	const url = new URL("/admin/login", request.url);
 	url.searchParams.set(messageType, message);
 	return NextResponse.redirect(url, { status: 303 });
+}
+
+function tooManyRequestsResponse(retryAfterSeconds: number): NextResponse {
+	return new NextResponse(
+		"ログイン試行回数が上限に達しました。時間を置いて再試行してください。",
+		{
+			status: 429,
+			headers: {
+				"Content-Type": "text/plain; charset=utf-8",
+				"Retry-After": String(retryAfterSeconds),
+			},
+		},
+	);
 }
 
 export async function POST(request: NextRequest) {
@@ -25,19 +40,24 @@ export async function POST(request: NextRequest) {
 			typeof formData.get("password") === "string"
 				? String(formData.get("password"))
 				: "";
+		const clientIp = getClientIp(request);
 
-		const result = authenticateAdminCredentials(email, password);
-		if (!result.ok) {
-			return toLoginRedirect(
-				request,
-				"error",
-				result.error ?? "ログインに失敗しました。",
-			);
+		const result = evaluateAdminLoginAttempt({
+			email,
+			password,
+			ip: clientIp,
+			authenticate: authenticateAdminCredentials,
+		});
+		if (result.status === "rate_limited") {
+			return tooManyRequestsResponse(result.retryAfterSeconds);
+		}
+		if (result.status === "invalid") {
+			return toLoginRedirect(request, "error", result.error);
 		}
 
 		const url = new URL("/admin", request.url);
 		const response = NextResponse.redirect(url, { status: 303 });
-		setAdminSessionOnResponse(response, email.toLowerCase());
+		setAdminSessionOnResponse(response, result.sessionEmail);
 		return response;
 	} catch (error) {
 		console.error("Admin login failed:", error);
