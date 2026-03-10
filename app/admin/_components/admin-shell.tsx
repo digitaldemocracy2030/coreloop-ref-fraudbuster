@@ -12,6 +12,7 @@ const ADMIN_NAV_ITEMS = [
 		href: "/admin/report-statuses",
 		label: "通報ステータス管理",
 	},
+	{ id: "inquiries", href: "/admin/inquiries", label: "お問い合わせ管理" },
 ] as const;
 
 export type AdminNavItemId = (typeof ADMIN_NAV_ITEMS)[number]["id"];

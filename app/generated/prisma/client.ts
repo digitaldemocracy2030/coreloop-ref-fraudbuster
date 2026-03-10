@@ -9,26 +9,27 @@
  * 🟢 You can import this file directly.
  */
 
-import * as path from "node:path";
 import * as process from "node:process";
+import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-
 globalThis["__dirname"] = path.dirname(fileURLToPath(import.meta.url));
 
 import * as runtime from "@prisma/client/runtime/client";
-import * as $Enums from "./enums";
-import * as $Class from "./internal/class";
-import * as Prisma from "./internal/prismaNamespace";
+import * as $Enums from "./enums.ts";
+import * as $Class from "./internal/class.ts";
+import * as Prisma from "./internal/prismaNamespace.ts";
 
-export * as $Enums from "./enums";
-export * from "./enums";
+export * as $Enums from "./enums.ts";
+export * from "./enums.ts";
 /**
  * ## Prisma Client
  *
  * Type-safe database client for TypeScript
  * @example
  * ```
- * const prisma = new PrismaClient()
+ * const prisma = new PrismaClient({
+ *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
+ * })
  * // Fetch zero or more FraudCategories
  * const fraudCategories = await prisma.fraudCategory.findMany()
  * ```
@@ -110,3 +111,8 @@ export type Banner = Prisma.BannerModel;
  *
  */
 export type DailyStatistics = Prisma.DailyStatisticsModel;
+/**
+ * Model Inquiry
+ *
+ */
+export type Inquiry = Prisma.InquiryModel;

@@ -15,10 +15,10 @@
  */
 
 import * as runtime from "@prisma/client/runtime/client";
-import type * as Prisma from "../models";
-import { type PrismaClient } from "./class";
+import type * as Prisma from "../models.ts";
+import { type PrismaClient } from "./class.ts";
 
-export type * from "../models";
+export type * from "../models.ts";
 
 export type DMMF = typeof runtime.DMMF;
 
@@ -93,12 +93,12 @@ export type PrismaVersion = {
 };
 
 /**
- * Prisma Client JS version: 7.4.0
- * Query Engine version: ab56fe763f921d033a6c195e7ddeb3e255bdbb57
+ * Prisma Client JS version: 7.4.2
+ * Query Engine version: 94a226be1cf2967af2541cca5529f0f7ba866919
  */
 export const prismaVersion: PrismaVersion = {
-	client: "7.4.0",
-	engine: "ab56fe763f921d033a6c195e7ddeb3e255bdbb57",
+	client: "7.4.2",
+	engine: "94a226be1cf2967af2541cca5529f0f7ba866919",
 };
 
 /**
@@ -429,6 +429,7 @@ export const ModelName = {
 	AnnouncementTagRelation: "AnnouncementTagRelation",
 	Banner: "Banner",
 	DailyStatistics: "DailyStatistics",
+	Inquiry: "Inquiry",
 } as const;
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName];
@@ -463,7 +464,8 @@ export type TypeMap<
 			| "announcementTag"
 			| "announcementTagRelation"
 			| "banner"
-			| "dailyStatistics";
+			| "dailyStatistics"
+			| "inquiry";
 		txIsolationLevel: TransactionIsolationLevel;
 	};
 	model: {
@@ -1455,6 +1457,82 @@ export type TypeMap<
 				};
 			};
 		};
+		Inquiry: {
+			payload: Prisma.$InquiryPayload<ExtArgs>;
+			fields: Prisma.InquiryFieldRefs;
+			operations: {
+				findUnique: {
+					args: Prisma.InquiryFindUniqueArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload> | null;
+				};
+				findUniqueOrThrow: {
+					args: Prisma.InquiryFindUniqueOrThrowArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>;
+				};
+				findFirst: {
+					args: Prisma.InquiryFindFirstArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload> | null;
+				};
+				findFirstOrThrow: {
+					args: Prisma.InquiryFindFirstOrThrowArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>;
+				};
+				findMany: {
+					args: Prisma.InquiryFindManyArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>[];
+				};
+				create: {
+					args: Prisma.InquiryCreateArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>;
+				};
+				createMany: {
+					args: Prisma.InquiryCreateManyArgs<ExtArgs>;
+					result: BatchPayload;
+				};
+				createManyAndReturn: {
+					args: Prisma.InquiryCreateManyAndReturnArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>[];
+				};
+				delete: {
+					args: Prisma.InquiryDeleteArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>;
+				};
+				update: {
+					args: Prisma.InquiryUpdateArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>;
+				};
+				deleteMany: {
+					args: Prisma.InquiryDeleteManyArgs<ExtArgs>;
+					result: BatchPayload;
+				};
+				updateMany: {
+					args: Prisma.InquiryUpdateManyArgs<ExtArgs>;
+					result: BatchPayload;
+				};
+				updateManyAndReturn: {
+					args: Prisma.InquiryUpdateManyAndReturnArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>[];
+				};
+				upsert: {
+					args: Prisma.InquiryUpsertArgs<ExtArgs>;
+					result: runtime.Types.Utils.PayloadToResult<Prisma.$InquiryPayload>;
+				};
+				aggregate: {
+					args: Prisma.InquiryAggregateArgs<ExtArgs>;
+					result: runtime.Types.Utils.Optional<Prisma.AggregateInquiry>;
+				};
+				groupBy: {
+					args: Prisma.InquiryGroupByArgs<ExtArgs>;
+					result: runtime.Types.Utils.Optional<Prisma.InquiryGroupByOutputType>[];
+				};
+				count: {
+					args: Prisma.InquiryCountArgs<ExtArgs>;
+					result:
+						| runtime.Types.Utils.Optional<Prisma.InquiryCountAggregateOutputType>
+						| number;
+				};
+			};
+		};
 	};
 } & {
 	other: {
@@ -1654,6 +1732,20 @@ export const DailyStatisticsScalarFieldEnum = {
 
 export type DailyStatisticsScalarFieldEnum =
 	(typeof DailyStatisticsScalarFieldEnum)[keyof typeof DailyStatisticsScalarFieldEnum];
+
+export const InquiryScalarFieldEnum = {
+	id: "id",
+	name: "name",
+	email: "email",
+	subject: "subject",
+	message: "message",
+	isRead: "isRead",
+	createdAt: "createdAt",
+	updatedAt: "updatedAt",
+} as const;
+
+export type InquiryScalarFieldEnum =
+	(typeof InquiryScalarFieldEnum)[keyof typeof InquiryScalarFieldEnum];
 
 export const SortOrder = {
 	asc: "asc",
@@ -1900,6 +1992,7 @@ export type GlobalOmitConfig = {
 	announcementTagRelation?: Prisma.AnnouncementTagRelationOmit;
 	banner?: Prisma.BannerOmit;
 	dailyStatistics?: Prisma.DailyStatisticsOmit;
+	inquiry?: Prisma.InquiryOmit;
 };
 
 /* Types for Logging */

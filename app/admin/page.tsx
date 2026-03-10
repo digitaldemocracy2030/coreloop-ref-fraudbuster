@@ -1,4 +1,4 @@
-import { Megaphone, ShieldCheck } from "lucide-react";
+import { Megaphone, MessageSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 
@@ -18,12 +18,19 @@ export default async function AdminPage() {
 	await connection();
 	const session = await requireAdminSession();
 
-	const [announcementCount, publishedAnnouncementCount, reportCount] =
-		await Promise.all([
-			prisma.announcement.count(),
-			prisma.announcement.count({ where: { isPublished: true } }),
-			prisma.report.count(),
-		]);
+	const [
+		announcementCount,
+		publishedAnnouncementCount,
+		reportCount,
+		inquiryCount,
+		unreadInquiryCount,
+	] = await Promise.all([
+		prisma.announcement.count(),
+		prisma.announcement.count({ where: { isPublished: true } }),
+		prisma.report.count(),
+		prisma.inquiry.count(),
+		prisma.inquiry.count({ where: { isRead: false } }),
+	]);
 
 	return (
 		<AdminShell
@@ -32,7 +39,7 @@ export default async function AdminPage() {
 			title="管理画面"
 			description="管理機能は用途ごとにページを分けて操作できます。"
 		>
-			<section className="grid gap-4 md:grid-cols-2">
+			<section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				<Card>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
@@ -71,6 +78,26 @@ export default async function AdminPage() {
 							<Link href="/admin/report-statuses">
 								通報ステータス管理へ移動
 							</Link>
+						</Button>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<MessageSquare className="h-5 w-5" />
+							お問い合わせ管理
+						</CardTitle>
+						<CardDescription>
+							ユーザーからのお問い合わせ内容を確認し、既読管理を行います。
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<p className="text-sm text-muted-foreground">
+							全{inquiryCount}件（未読 {unreadInquiryCount}件）
+						</p>
+						<Button asChild>
+							<Link href="/admin/inquiries">お問い合わせ管理へ移動</Link>
 						</Button>
 					</CardContent>
 				</Card>

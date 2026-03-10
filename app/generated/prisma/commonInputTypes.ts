@@ -9,8 +9,8 @@
  */
 
 import type * as runtime from "@prisma/client/runtime/client";
-import * as $Enums from "./enums";
-import type * as Prisma from "./internal/prismaNamespace";
+import * as $Enums from "./enums.ts";
+import type * as Prisma from "./internal/prismaNamespace.ts";
 
 export type IntFilter<$PrismaModel = never> = {
 	equals?: number | Prisma.IntFieldRefInput<$PrismaModel>;
@@ -382,6 +382,19 @@ export type JsonWithAggregatesFilterBase<$PrismaModel = never> = {
 	_max?: Prisma.NestedJsonFilter<$PrismaModel>;
 };
 
+export type BoolFilter<$PrismaModel = never> = {
+	equals?: boolean | Prisma.BooleanFieldRefInput<$PrismaModel>;
+	not?: Prisma.NestedBoolFilter<$PrismaModel> | boolean;
+};
+
+export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+	equals?: boolean | Prisma.BooleanFieldRefInput<$PrismaModel>;
+	not?: Prisma.NestedBoolWithAggregatesFilter<$PrismaModel> | boolean;
+	_count?: Prisma.NestedIntFilter<$PrismaModel>;
+	_min?: Prisma.NestedBoolFilter<$PrismaModel>;
+	_max?: Prisma.NestedBoolFilter<$PrismaModel>;
+};
+
 export type NestedIntFilter<$PrismaModel = never> = {
 	equals?: number | Prisma.IntFieldRefInput<$PrismaModel>;
 	in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>;
@@ -711,4 +724,17 @@ export type NestedJsonFilterBase<$PrismaModel = never> = {
 		| runtime.InputJsonValue
 		| Prisma.JsonFieldRefInput<$PrismaModel>
 		| Prisma.JsonNullValueFilter;
+};
+
+export type NestedBoolFilter<$PrismaModel = never> = {
+	equals?: boolean | Prisma.BooleanFieldRefInput<$PrismaModel>;
+	not?: Prisma.NestedBoolFilter<$PrismaModel> | boolean;
+};
+
+export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+	equals?: boolean | Prisma.BooleanFieldRefInput<$PrismaModel>;
+	not?: Prisma.NestedBoolWithAggregatesFilter<$PrismaModel> | boolean;
+	_count?: Prisma.NestedIntFilter<$PrismaModel>;
+	_min?: Prisma.NestedBoolFilter<$PrismaModel>;
+	_max?: Prisma.NestedBoolFilter<$PrismaModel>;
 };

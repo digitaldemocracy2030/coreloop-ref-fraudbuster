@@ -16,8 +16,8 @@
 
 import * as runtime from "@prisma/client/runtime/index-browser";
 
-export type * from "../models";
-export type * from "./prismaNamespace";
+export type * from "../models.ts";
+export type * from "./prismaNamespace.ts";
 
 export const Decimal = runtime.Decimal;
 
@@ -67,6 +67,7 @@ export const ModelName = {
 	AnnouncementTagRelation: "AnnouncementTagRelation",
 	Banner: "Banner",
 	DailyStatistics: "DailyStatistics",
+	Inquiry: "Inquiry",
 } as const;
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName];
@@ -245,6 +246,20 @@ export const DailyStatisticsScalarFieldEnum = {
 
 export type DailyStatisticsScalarFieldEnum =
 	(typeof DailyStatisticsScalarFieldEnum)[keyof typeof DailyStatisticsScalarFieldEnum];
+
+export const InquiryScalarFieldEnum = {
+	id: "id",
+	name: "name",
+	email: "email",
+	subject: "subject",
+	message: "message",
+	isRead: "isRead",
+	createdAt: "createdAt",
+	updatedAt: "updatedAt",
+} as const;
+
+export type InquiryScalarFieldEnum =
+	(typeof InquiryScalarFieldEnum)[keyof typeof InquiryScalarFieldEnum];
 
 export const SortOrder = {
 	asc: "asc",

@@ -186,3 +186,16 @@ model DailyStatistics {
 
   @@map("daily_statistics")
 }
+
+model Inquiry {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name      String   @db.VarChar(100)
+  email     String   @db.VarChar(255)
+  subject   String?  @db.VarChar(255)
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("inquiries")
+}
