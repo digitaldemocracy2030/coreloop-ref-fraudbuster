@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { DeleteConfirmButton } from "@/app/admin/_components/delete-confirm-button";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -122,15 +123,12 @@ export function AnnouncementEditDialog({
 							</div>
 						</form>
 
-						<form
+						<DeleteConfirmButton
 							action={`/api/admin/announcements/${announcement.id}`}
-							method="post"
-						>
-							<input type="hidden" name="intent" value="delete" />
-							<Button type="submit" size="sm" variant="destructive">
-								削除
-							</Button>
-						</form>
+							title="このお知らせを削除しますか？"
+							description="お知らせを削除すると、公開中の一覧からも消えます。この操作は元に戻せません。"
+							hiddenFields={[{ name: "intent", value: "delete" }]}
+						/>
 					</div>
 				) : null}
 			</DialogContent>

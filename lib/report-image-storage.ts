@@ -73,6 +73,50 @@ export function isValidReportImageStorageUrl(value: string): boolean {
 	}
 }
 
+export function getReportImageStoragePathFromUrl(value: string): string | null {
+	const trimmed = value.trim();
+	if (!trimmed || trimmed.length > 2048) return null;
+
+	const supabaseOrigin = resolveSupabaseProjectOrigin();
+	if (!supabaseOrigin) return null;
+
+	const bucket = getReportImageStorageBucket();
+	const encodedBucket = encodeURIComponent(bucket);
+	const publicPrefixes = [
+		`/storage/v1/object/public/${bucket}/`,
+		`/storage/v1/object/public/${encodedBucket}/`,
+	];
+
+	try {
+		const parsed = new URL(trimmed);
+		if (
+			(parsed.protocol !== "https:" && parsed.protocol !== "http:") ||
+			parsed.origin !== supabaseOrigin
+		) {
+			return null;
+		}
+
+		const matchedPrefix = publicPrefixes.find((prefix) =>
+			parsed.pathname.startsWith(prefix),
+		);
+		if (!matchedPrefix) {
+			return null;
+		}
+
+		const encodedObjectPath = parsed.pathname.slice(matchedPrefix.length);
+		if (!encodedObjectPath) {
+			return null;
+		}
+
+		return encodedObjectPath
+			.split("/")
+			.map((segment) => decodeURIComponent(segment))
+			.join("/");
+	} catch {
+		return null;
+	}
+}
+
 export async function readStorageResponseText(
 	response: Response,
 ): Promise<string> {

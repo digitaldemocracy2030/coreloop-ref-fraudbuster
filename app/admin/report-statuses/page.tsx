@@ -1,6 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import { connection } from "next/server";
 
+import { DeleteConfirmButton } from "@/app/admin/_components/delete-confirm-button";
 import { AdminShell } from "@/app/admin/_components/admin-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,7 +67,7 @@ export default async function AdminReportStatusesPage({
 							通報ステータス一覧
 						</CardTitle>
 						<CardDescription>
-							対象通報を選び、ステータスを変更してください。
+							対象通報のステータス変更と削除を行えます。
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -83,7 +84,7 @@ export default async function AdminReportStatusesPage({
 										<th className="px-3 py-2 text-left font-medium">通報</th>
 										<th className="px-3 py-2 text-left font-medium">投稿日</th>
 										<th className="px-3 py-2 text-left font-medium">現在</th>
-										<th className="px-3 py-2 text-left font-medium">変更</th>
+										<th className="px-3 py-2 text-left font-medium">操作</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -110,32 +111,39 @@ export default async function AdminReportStatusesPage({
 													{report.status?.label ?? "未設定"}
 												</td>
 												<td className="px-3 py-3 align-top">
-													<form
-														action={`/api/admin/reports/${report.id}/status`}
-														method="post"
-														className="flex items-center gap-2"
-													>
-														<select
-															name="statusId"
-															className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-															defaultValue={String(selectedStatusId)}
-															required
-															disabled={reportStatuses.length === 0}
+													<div className="flex flex-wrap items-center gap-2">
+														<form
+															action={`/api/admin/reports/${report.id}/status`}
+															method="post"
+															className="flex items-center gap-2"
 														>
-															{reportStatuses.map((status) => (
-																<option key={status.id} value={status.id}>
-																	{status.label}
-																</option>
-															))}
-														</select>
-														<Button
-															type="submit"
-															size="sm"
-															disabled={reportStatuses.length === 0}
-														>
-															更新
-														</Button>
-													</form>
+															<select
+																name="statusId"
+																className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+																defaultValue={String(selectedStatusId)}
+																required
+																disabled={reportStatuses.length === 0}
+															>
+																{reportStatuses.map((status) => (
+																	<option key={status.id} value={status.id}>
+																		{status.label}
+																	</option>
+																))}
+															</select>
+															<Button
+																type="submit"
+																size="sm"
+																disabled={reportStatuses.length === 0}
+															>
+																更新
+															</Button>
+														</form>
+														<DeleteConfirmButton
+															action={`/api/admin/reports/${report.id}`}
+															title="この通報を削除しますか？"
+															description={`${report.title || report.url} を削除します。関連する画像とタイムラインも削除され、この操作は元に戻せません。`}
+														/>
+													</div>
 												</td>
 											</tr>
 										);
