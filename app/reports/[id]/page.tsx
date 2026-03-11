@@ -212,7 +212,7 @@ export default async function ReportDetailPage({
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="relative space-y-8 before:absolute before:inset-0 before:ml-2 before:h-full before:w-1 before:bg-primary/40">
+							<div className="relative space-y-8 before:absolute before:top-0 before:bottom-0 before:left-2 before:w-px before:-translate-x-1/2 before:bg-primary/40">
 								{report.timelines.length > 0 ? (
 									report.timelines.map((item, idx) => {
 										const latestIndex = report.timelines.length - 1;
