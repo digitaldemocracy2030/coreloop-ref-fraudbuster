@@ -8,6 +8,12 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
 
+const siteUrl =
+	process.env.NEXT_PUBLIC_SITE_URL ??
+	process.env.NEXT_PUBLIC_APP_URL ??
+	(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
+	"http://localhost:3000";
+
 const inter = Inter({
 	subsets: ["latin"],
 	variable: "--font-inter",
@@ -22,9 +28,33 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-	title: "AntiFraud - ネット詐欺通報・検索プラットフォーム",
+	metadataBase: new URL(siteUrl),
+	title: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
 	description:
-		"SNSやメッセージアプリの詐欺情報をみんなの力で集約し、共有・検索できるプラットフォーム。",
+		"SNSやWebサイトの広告詐欺情報をみんなの力で集約し、共有・検索できるプラットフォーム。",
+	openGraph: {
+		title: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
+		description:
+			"SNSやWebサイトの広告詐欺情報をみんなの力で集約し、共有・検索できるプラットフォーム。",
+		type: "website",
+		locale: "ja_JP",
+		siteName: "AntiFraud",
+		images: [
+			{
+				url: "/ogp.png",
+				width: 1200,
+				height: 630,
+				alt: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
+		description:
+			"SNSやWebサイトの広告詐欺情報をみんなの力で集約し、共有・検索できるプラットフォーム。",
+		images: ["/ogp.png"],
+	},
 };
 
 export default function RootLayout({
