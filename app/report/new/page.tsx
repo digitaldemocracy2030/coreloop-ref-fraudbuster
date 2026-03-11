@@ -5,6 +5,7 @@ import {
 	ArrowLeft,
 	ArrowRight,
 	CheckCircle2,
+	LoaderCircle,
 	Lock,
 	ShieldAlert,
 	ShieldCheck,
@@ -68,6 +69,11 @@ type TurnstileApi = {
 type WindowWithTurnstile = Window & { turnstile?: TurnstileApi };
 
 type Step = "basic" | "details" | "verify" | "complete";
+type SubmissionPhase =
+	| "idle"
+	| "uploading-screenshots"
+	| "submitting-report"
+	| "finalizing";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type ScreenshotAttachment = {
@@ -97,6 +103,46 @@ function RequiredAsterisk() {
 	);
 }
 
+function getSubmissionStatus(
+	phase: SubmissionPhase,
+	elapsedSeconds: number,
+	hasScreenshots: boolean,
+) {
+	const elapsedLabel =
+		elapsedSeconds > 0
+			? `処理開始から約${elapsedSeconds}秒`
+			: "処理を開始しました";
+
+	if (phase === "uploading-screenshots") {
+		return {
+			buttonLabel: "画像をアップロード中...",
+			title: "スクリーンショットをアップロードしています",
+			description:
+				"画像の安全確認とアップロードを順番に行っています。添付枚数やファイルサイズに応じて少し時間がかかることがあります。",
+			helper: `${elapsedLabel}。このまま画面を閉じずにお待ちください。`,
+		};
+	}
+
+	if (phase === "finalizing") {
+		return {
+			buttonLabel: "完了処理中...",
+			title: "最終確認をしています",
+			description:
+				"登録内容の反映を完了しています。まもなく完了画面へ切り替わります。",
+			helper: `${elapsedLabel}。通信が完了するまで、このままお待ちください。`,
+		};
+	}
+
+	return {
+		buttonLabel: "通報を登録中...",
+		title: "通報内容を登録しています",
+		description: hasScreenshots
+			? "通報内容の保存に加えて、リンク先プレビューや関連情報の処理を行っています。数十秒かかる場合があります。"
+			: "リンク先プレビューや関連情報の処理を行っているため、完了まで少し時間がかかる場合があります。",
+		helper: `${elapsedLabel}。ブラウザを閉じたり再読み込みしたりせず、そのままお待ちください。`,
+	};
+}
+
 export default function NewReportPage() {
 	const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 	const router = useRouter();
@@ -110,12 +156,17 @@ export default function NewReportPage() {
 	>(null);
 	const [reportSessionToken, setReportSessionToken] = React.useState("");
 	const [loading, setLoading] = React.useState(false);
+	const [submissionPhase, setSubmissionPhase] =
+		React.useState<SubmissionPhase>("idle");
+	const [submissionStartedAt, setSubmissionStartedAt] = React.useState<
+		number | null
+	>(null);
+	const [submissionElapsedSeconds, setSubmissionElapsedSeconds] =
+		React.useState(0);
 	const [screenshots, setScreenshots] = React.useState<ScreenshotAttachment[]>(
 		[],
 	);
 	const [isDragActive, setIsDragActive] = React.useState(false);
-	const [isUploadingScreenshots, setIsUploadingScreenshots] =
-		React.useState(false);
 	const formStartedAtRef = React.useRef(Date.now());
 	const turnstileContainerRef = React.useRef<HTMLDivElement | null>(null);
 	const screenshotFileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -163,6 +214,25 @@ export default function NewReportPage() {
 			}
 		};
 	}, []);
+
+	React.useEffect(() => {
+		if (!loading || submissionStartedAt === null) {
+			setSubmissionElapsedSeconds(0);
+			return;
+		}
+
+		const tick = () => {
+			setSubmissionElapsedSeconds(
+				Math.max(0, Math.floor((Date.now() - submissionStartedAt) / 1000)),
+			);
+		};
+
+		tick();
+		const intervalId = window.setInterval(tick, 1000);
+		return () => {
+			window.clearInterval(intervalId);
+		};
+	}, [loading, submissionStartedAt]);
 
 	const clearScreenshots = React.useCallback(() => {
 		setScreenshots((current) => {
@@ -355,7 +425,8 @@ export default function NewReportPage() {
 			setIsDragActive(false);
 			setTurnstileToken("");
 			setLoading(false);
-			setIsUploadingScreenshots(false);
+			setSubmissionPhase("idle");
+			setSubmissionStartedAt(null);
 			formStartedAtRef.current = Date.now();
 		}
 		previousPathnameRef.current = pathname;
@@ -400,12 +471,16 @@ export default function NewReportPage() {
 		}
 
 		setLoading(true);
+		setSubmissionStartedAt(Date.now());
+		setSubmissionPhase(
+			screenshots.length > 0 ? "uploading-screenshots" : "submitting-report",
+		);
 		try {
 			let screenshotUrls: string[] = [];
 			if (screenshots.length > 0) {
-				setIsUploadingScreenshots(true);
 				screenshotUrls = await uploadScreenshots();
 			}
+			setSubmissionPhase("submitting-report");
 
 			const response = await fetch("/api/reports", {
 				method: "POST",
@@ -436,6 +511,7 @@ export default function NewReportPage() {
 			}
 
 			clearScreenshots();
+			setSubmissionPhase("finalizing");
 			setStep("complete");
 			toast.success("通報が完了しました。ご協力ありがとうございます。");
 		} catch (error) {
@@ -448,7 +524,8 @@ export default function NewReportPage() {
 			console.error(error);
 		} finally {
 			setLoading(false);
-			setIsUploadingScreenshots(false);
+			setSubmissionPhase("idle");
+			setSubmissionStartedAt(null);
 		}
 	};
 
@@ -482,7 +559,8 @@ export default function NewReportPage() {
 		setIsDragActive(false);
 		setTurnstileToken("");
 		setLoading(false);
-		setIsUploadingScreenshots(false);
+		setSubmissionPhase("idle");
+		setSubmissionStartedAt(null);
 		formStartedAtRef.current = Date.now();
 	}, [clearScreenshots]);
 
@@ -494,6 +572,12 @@ export default function NewReportPage() {
 		resetReportFormState();
 		router.push("/");
 	};
+
+	const submissionStatus = getSubmissionStatus(
+		submissionPhase,
+		submissionElapsedSeconds,
+		screenshots.length > 0,
+	);
 
 	return (
 		<div className="container max-w-2xl py-12 space-y-8">
@@ -823,6 +907,7 @@ export default function NewReportPage() {
 							variant="outline"
 							className="h-12 rounded-xl px-8"
 							onClick={prevStep}
+							disabled={loading}
 						>
 							戻る
 						</Button>
@@ -833,13 +918,38 @@ export default function NewReportPage() {
 								loading || !turnstileSiteKey || !turnstileToken || !isEmailValid
 							}
 						>
-							{loading
-								? isUploadingScreenshots
-									? "登録中..."
-									: "送信中..."
-								: "通報を完了する"}
+							{loading ? submissionStatus.buttonLabel : "通報を完了する"}
 						</Button>
 					</CardFooter>
+					{loading ? (
+						<div className="px-6 pb-6">
+							<div
+								role="status"
+								aria-live="polite"
+								className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-3"
+							>
+								<div className="flex gap-3">
+									<LoaderCircle className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary" />
+									<div className="space-y-1.5">
+										<p className="text-sm font-semibold">
+											{submissionStatus.title}
+										</p>
+										<p className="text-sm text-muted-foreground">
+											{submissionStatus.description}
+										</p>
+										<p className="text-xs text-muted-foreground">
+											{submissionStatus.helper}
+										</p>
+										{submissionElapsedSeconds >= 15 ? (
+											<p className="text-xs font-medium text-foreground">
+												通常より少し時間がかかっていますが、処理は継続しています。
+											</p>
+										) : null}
+									</div>
+								</div>
+							</div>
+						</div>
+					) : null}
 				</Card>
 			)}
 
