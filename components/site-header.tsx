@@ -53,7 +53,7 @@ export function SiteHeader() {
 				<div className="flex items-center gap-2">
 					<Link href="/" className="flex items-center space-x-2">
 						<ShieldAlert className="h-6 w-6 text-primary" />
-						<span className="inline-flex items-start gap-1 font-bold text-xl tracking-tight">
+						<span className="inline-flex items-end gap-1 font-bold text-xl tracking-tight">
 							<span>AntiFraud</span>
 							<span className="text-[0.65em] font-semibold leading-none text-muted-foreground">
 								β
