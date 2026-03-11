@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleHelp, ShieldAlert, X } from "lucide-react";
+import { CircleHelp, Menu, ShieldAlert, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
@@ -8,6 +8,15 @@ import * as React from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { OPEN_SITE_INTRODUCTION_MODAL_EVENT } from "@/components/site-introduction-modal";
 import { Button } from "@/components/ui/button";
+import {
+	Sheet,
+	SheetClose,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -20,6 +29,7 @@ export function SiteHeader() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const [isBetaBannerVisible, setIsBetaBannerVisible] = React.useState(true);
+	const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
 	const openIntroductionModal = React.useCallback(() => {
 		window.dispatchEvent(new Event(OPEN_SITE_INTRODUCTION_MODAL_EVENT));
@@ -68,7 +78,7 @@ export function SiteHeader() {
 						))}
 					</nav>
 				</div>
-				<div className="flex items-center gap-4">
+				<div className="flex items-center gap-2 sm:gap-4">
 					<div className="hidden sm:block">
 						<Link href="/report/new">
 							<Button variant="default" className="rounded-full px-6">
@@ -87,6 +97,70 @@ export function SiteHeader() {
 					>
 						<CircleHelp className="h-5 w-5" />
 					</Button>
+					<Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+						<SheetTrigger asChild>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="rounded-full md:hidden"
+								aria-label="メニューを開く"
+							>
+								<Menu className="h-5 w-5" />
+							</Button>
+						</SheetTrigger>
+						<SheetContent
+							side="right"
+							className="w-[min(20rem,calc(100vw-1rem))] gap-0 px-0 [&>button]:top-3.5 [&>button]:right-3.5"
+						>
+							<SheetHeader className="border-b px-4 py-4 text-left">
+								<SheetTitle>メニュー</SheetTitle>
+								<SheetDescription>
+									主要なページへ移動できます。
+								</SheetDescription>
+							</SheetHeader>
+							<nav className="flex flex-col px-2 py-3">
+								{NAV_ITEMS.map((item) => (
+									<SheetClose key={item.href} asChild>
+										<Link
+											href={item.href}
+											prefetch
+											onMouseEnter={() => prefetchRoute(item.href)}
+											onFocus={() => prefetchRoute(item.href)}
+											onTouchStart={() => prefetchRoute(item.href)}
+											className={cn(
+												"rounded-xl px-3 py-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+												isActive(item.href)
+													? "bg-accent text-foreground"
+													: "text-foreground/70",
+											)}
+										>
+											{item.label}
+										</Link>
+									</SheetClose>
+								))}
+							</nav>
+							<div className="mt-auto border-t px-4 pt-5 pb-4">
+								<SheetClose asChild>
+									<Link href="/report/new">
+										<Button className="w-full rounded-full">通報する</Button>
+									</Link>
+								</SheetClose>
+								<Button
+									type="button"
+									variant="outline"
+									className="mt-3 w-full rounded-full"
+									onClick={() => {
+										setIsMobileMenuOpen(false);
+										openIntroductionModal();
+									}}
+								>
+									<CircleHelp className="h-4 w-4" />
+									このサイトについて
+								</Button>
+							</div>
+						</SheetContent>
+					</Sheet>
 				</div>
 			</div>
 			{isBetaBannerVisible ? (
