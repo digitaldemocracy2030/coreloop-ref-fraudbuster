@@ -204,10 +204,16 @@ export default function ContactPage() {
 							<CardHeader>
 								<CardTitle className="text-base">よくある内容</CardTitle>
 							</CardHeader>
-							<CardContent className="space-y-2">
-								<Badge variant="secondary">通報内容の修正依頼</Badge>
-								<Badge variant="secondary">掲載情報の削除依頼</Badge>
-								<Badge variant="secondary">サービス改善の要望</Badge>
+							<CardContent className="flex flex-col gap-2">
+								<Badge variant="secondary" className="px-3 py-1.5">
+									通報内容の修正依頼
+								</Badge>
+								<Badge variant="secondary" className="px-3 py-1.5">
+									掲載情報の削除依頼
+								</Badge>
+								<Badge variant="secondary" className="px-3 py-1.5">
+									サービス改善の要望
+								</Badge>
 							</CardContent>
 						</Card>
 					</div>
