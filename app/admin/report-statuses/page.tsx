@@ -1,8 +1,8 @@
 import { ShieldCheck } from "lucide-react";
 import { connection } from "next/server";
-
-import { DeleteConfirmButton } from "@/app/admin/_components/delete-confirm-button";
 import { AdminShell } from "@/app/admin/_components/admin-shell";
+import { DeleteConfirmButton } from "@/app/admin/_components/delete-confirm-button";
+import { ReportImageUploadDialog } from "@/app/admin/report-statuses/_components/report-image-upload-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -41,6 +41,11 @@ export default async function AdminReportStatusesPage({
 				url: true,
 				createdAt: true,
 				statusId: true,
+				_count: {
+					select: {
+						images: true,
+					},
+				},
 				status: {
 					select: {
 						label: true,
@@ -55,7 +60,7 @@ export default async function AdminReportStatusesPage({
 			email={session.email}
 			activeNav="report-statuses"
 			title="通報ステータス管理"
-			description="各通報のステータスを変更し、詳細画面の表示とタイムラインに反映します。"
+			description="各通報のステータス変更、証拠画像の追加、削除を行います。"
 			notice={notice}
 			error={error}
 		>
@@ -67,7 +72,7 @@ export default async function AdminReportStatusesPage({
 							通報ステータス一覧
 						</CardTitle>
 						<CardDescription>
-							対象通報のステータス変更と削除を行えます。
+							対象通報のステータス変更、画像追加、削除を行えます。
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -101,6 +106,9 @@ export default async function AdminReportStatusesPage({
 														</p>
 														<p className="text-xs text-muted-foreground break-all">
 															{report.url}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															登録画像: {report._count.images}枚
 														</p>
 													</div>
 												</td>
@@ -138,6 +146,12 @@ export default async function AdminReportStatusesPage({
 																更新
 															</Button>
 														</form>
+														<ReportImageUploadDialog
+															reportId={report.id}
+															reportTitle={report.title}
+															reportUrl={report.url}
+															existingImageCount={report._count.images}
+														/>
 														<DeleteConfirmButton
 															action={`/api/admin/reports/${report.id}`}
 															title="この通報を削除しますか？"

@@ -1,4 +1,3 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export type ApiErrorResponse = {
@@ -26,72 +25,6 @@ export type TurnstileVerificationResult = {
 	success: boolean;
 	errorCodes: string[];
 };
-
-export type ReportSessionPayload = {
-	sessionId: string;
-	iat: number;
-};
-
-const DEV_FALLBACK_REPORT_SESSION_SECRET =
-	"development-only-report-session-secret-change-me";
-const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-function resolveReportSessionSecret(): string {
-	const secret = process.env.REPORT_SESSION_SECRET?.trim();
-	if (secret) return secret;
-	if (process.env.NODE_ENV !== "production") {
-		return DEV_FALLBACK_REPORT_SESSION_SECRET;
-	}
-	throw new Error("REPORT_SESSION_SECRET is not set.");
-}
-
-const SESSION_SECRET = resolveReportSessionSecret();
-
-export function createReportSessionToken(sessionId: string): string {
-	const payload: ReportSessionPayload = {
-		sessionId,
-		iat: Date.now(),
-	};
-	const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url");
-	const hmac = createHmac("sha256", SESSION_SECRET);
-	hmac.update(payloadStr);
-	const signature = hmac.digest("base64url");
-	return `${payloadStr}.${signature}`;
-}
-
-export function verifyReportSessionToken(
-	token: string,
-): ReportSessionPayload | null {
-	const parts = token.split(".");
-	if (parts.length !== 2) return null;
-
-	const [payloadStr, signature] = parts;
-	const hmac = createHmac("sha256", SESSION_SECRET);
-	hmac.update(payloadStr);
-	const expectedSignature = hmac.digest("base64url");
-
-	// Timing safe comparison to prevent timing attacks
-	const signatureBuffer = Buffer.from(signature);
-	const expectedBuffer = Buffer.from(expectedSignature);
-
-	if (signatureBuffer.length !== expectedBuffer.length) return null;
-	if (!timingSafeEqual(signatureBuffer, expectedBuffer)) return null;
-
-	try {
-		const payload = JSON.parse(
-			Buffer.from(payloadStr, "base64url").toString("utf8"),
-		) as ReportSessionPayload;
-
-		// Expiry check
-		if (Date.now() - payload.iat > TOKEN_EXPIRY_MS) {
-			return null;
-		}
-
-		return payload;
-	} catch {
-		return null;
-	}
-}
 
 export function normalizeIp(value: string | null): string | null {
 	if (!value) return null;

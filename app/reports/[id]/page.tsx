@@ -1,6 +1,7 @@
 import { AlertTriangle, Calendar, CheckCircle2, Clock } from "lucide-react";
 import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -10,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/date";
-import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
 import { prisma } from "@/lib/prisma";
+import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
 
 async function getReportById(id: string) {
 	"use cache";
@@ -29,7 +30,6 @@ async function getReportById(id: string) {
 					id: true,
 					imageUrl: true,
 				},
-				take: 1,
 				orderBy: { displayOrder: "asc" as const },
 			},
 			timelines: {
@@ -97,7 +97,26 @@ export default async function ReportDetailPage({
 	};
 	const riskScore = report.riskScore;
 	const shouldMaskRiskScore = riskScore === null || riskScore <= 0;
-	const ogpImageUrl = getSafeReportImageProxyPath(report.images[0]);
+	const reportImages = report.images
+		.map((image) => {
+			const imageUrl = getSafeReportImageProxyPath(image);
+			if (!imageUrl) {
+				return null;
+			}
+
+			return {
+				id: image.id,
+				imageUrl,
+			};
+		})
+		.filter(
+			(
+				image,
+			): image is {
+				id: string;
+				imageUrl: string;
+			} => image !== null,
+		);
 	const maskedReportUrl = maskReportUrl(report.url);
 
 	return (
@@ -172,17 +191,17 @@ export default async function ReportDetailPage({
 						<h2 className="text-xl font-bold">詳しく見る</h2>
 						<div className="p-6 rounded-2xl bg-card border shadow-sm space-y-6">
 							<div className="space-y-2">
-								<label className="text-xs font-bold text-muted-foreground uppercase">
+								<p className="text-xs font-bold text-muted-foreground uppercase">
 									対象のURL
-								</label>
+								</p>
 								<div className="p-3 rounded-lg bg-muted/50 font-mono text-sm break-all">
 									{maskedReportUrl}
 								</div>
 							</div>
 							<div className="space-y-2">
-								<label className="text-xs font-bold text-muted-foreground uppercase">
+								<p className="text-xs font-bold text-muted-foreground uppercase">
 									詳細説明
-								</label>
+								</p>
 								<p className="leading-relaxed whitespace-pre-wrap">
 									{report.description || "説明はありません。"}
 								</p>
@@ -193,15 +212,23 @@ export default async function ReportDetailPage({
 					<section className="space-y-4">
 						<h2 className="text-xl font-bold">関連画像</h2>
 						<div className="rounded-2xl border bg-card p-6 shadow-sm">
-							{ogpImageUrl ? (
-								<div className="overflow-hidden rounded-xl border bg-muted/20">
-									<img
-										src={ogpImageUrl}
-										alt={report.title || report.url}
-										loading="lazy"
-										referrerPolicy="no-referrer"
-										className="h-52 w-full object-cover sm:h-64"
-									/>
+							{reportImages.length > 0 ? (
+								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+									{reportImages.map((image, index) => (
+										<div
+											key={image.id}
+											className="overflow-hidden rounded-xl border bg-muted/20"
+										>
+											<Image
+												src={image.imageUrl}
+												alt={`${report.title || report.url} の関連画像 ${index + 1}`}
+												width={1280}
+												height={960}
+												loading="lazy"
+												className="h-52 w-full object-cover sm:h-64"
+											/>
+										</div>
+									))}
 								</div>
 							) : (
 								<div className="rounded-lg border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">

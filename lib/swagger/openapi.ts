@@ -49,10 +49,6 @@ export function createOpenApiDocument(origin: string): OpenApiDocument {
 				description: "通報データの検索・投稿・詳細取得",
 			},
 			{
-				name: "Uploads",
-				description: "スクリーンショット画像アップロード",
-			},
-			{
 				name: "Statistics",
 				description: "ダッシュボード用の集計情報",
 			},
@@ -242,68 +238,6 @@ export function createOpenApiDocument(origin: string): OpenApiDocument {
 						},
 						500: {
 							description: "Internal Server Error",
-							content: {
-								"application/json": {
-									schema: { $ref: "#/components/schemas/ErrorResponse" },
-								},
-							},
-						},
-					},
-				},
-			},
-			"/api/reports/upload-images": {
-				post: {
-					tags: ["Uploads"],
-					summary: "スクリーンショット画像をアップロード",
-					description:
-						"multipart/form-data で files を複数送信します。最大5件、各5MB、JPG/JPEG/PNG/GIF/WEBP に対応しています。",
-					requestBody: {
-						required: true,
-						content: {
-							"multipart/form-data": {
-								schema: {
-									type: "object",
-									required: ["files"],
-									properties: {
-										files: {
-											type: "array",
-											items: {
-												type: "string",
-												format: "binary",
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					responses: {
-						201: {
-							description: "アップロード成功",
-							content: {
-								"application/json": {
-									schema: { $ref: "#/components/schemas/UploadImagesResponse" },
-								},
-							},
-						},
-						400: {
-							description: "入力エラー",
-							content: {
-								"application/json": {
-									schema: { $ref: "#/components/schemas/ErrorResponse" },
-								},
-							},
-						},
-						502: {
-							description: "ストレージ連携失敗",
-							content: {
-								"application/json": {
-									schema: { $ref: "#/components/schemas/ErrorResponse" },
-								},
-							},
-						},
-						503: {
-							description: "ストレージ設定不備",
 							content: {
 								"application/json": {
 									schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -559,26 +493,6 @@ export function createOpenApiDocument(origin: string): OpenApiDocument {
 						timelines: {
 							type: "array",
 							items: { $ref: "#/components/schemas/ReportTimelineItem" },
-						},
-					},
-				},
-				UploadedScreenshot: {
-					type: "object",
-					required: ["path", "publicUrl", "contentType", "size"],
-					properties: {
-						path: { type: "string" },
-						publicUrl: { type: "string", format: "uri" },
-						contentType: { type: "string" },
-						size: { type: "integer", minimum: 1 },
-					},
-				},
-				UploadImagesResponse: {
-					type: "object",
-					required: ["files"],
-					properties: {
-						files: {
-							type: "array",
-							items: { $ref: "#/components/schemas/UploadedScreenshot" },
 						},
 					},
 				},
