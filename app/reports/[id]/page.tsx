@@ -44,6 +44,16 @@ interface ReportDetailPageProps {
 	params: Promise<{ id: string }>;
 }
 
+function maskReportUrl(url: string) {
+	const trimmedUrl = url.trim();
+
+	if (trimmedUrl.length <= 24) {
+		return trimmedUrl;
+	}
+
+	return `${trimmedUrl.slice(0, 16)}...${trimmedUrl.slice(-8)}`;
+}
+
 export default async function ReportDetailPage({
 	params,
 }: ReportDetailPageProps) {
@@ -88,6 +98,7 @@ export default async function ReportDetailPage({
 	const riskScore = report.riskScore;
 	const shouldMaskRiskScore = riskScore === null || riskScore <= 0;
 	const ogpImageUrl = getSafeReportImageProxyPath(report.images[0]);
+	const maskedReportUrl = maskReportUrl(report.url);
 
 	return (
 		<div className="container py-10 space-y-10">
@@ -125,27 +136,6 @@ export default async function ReportDetailPage({
 						<h1 className="text-3xl font-bold tracking-tight">
 							{report.title || "（タイトルなし）"}
 						</h1>
-
-						<div className="space-y-2">
-							<label className="text-xs font-bold text-muted-foreground uppercase">
-								関連画像
-							</label>
-							{ogpImageUrl ? (
-								<div className="overflow-hidden rounded-xl border bg-muted/20">
-									<img
-										src={ogpImageUrl}
-										alt={report.title || report.url}
-										loading="lazy"
-										referrerPolicy="no-referrer"
-										className="h-52 w-full object-cover sm:h-64"
-									/>
-								</div>
-							) : (
-								<div className="rounded-lg border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
-									画像は登録されていません。
-								</div>
-							)}
-						</div>
 
 						<div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border">
 							<div className="flex flex-col items-center justify-center px-4 border-r">
@@ -186,7 +176,7 @@ export default async function ReportDetailPage({
 									対象のURL
 								</label>
 								<div className="p-3 rounded-lg bg-muted/50 font-mono text-sm break-all">
-									{report.url}
+									{maskedReportUrl}
 								</div>
 							</div>
 							<div className="space-y-2">
@@ -197,6 +187,27 @@ export default async function ReportDetailPage({
 									{report.description || "説明はありません。"}
 								</p>
 							</div>
+						</div>
+					</section>
+
+					<section className="space-y-4">
+						<h2 className="text-xl font-bold">関連画像</h2>
+						<div className="rounded-2xl border bg-card p-6 shadow-sm">
+							{ogpImageUrl ? (
+								<div className="overflow-hidden rounded-xl border bg-muted/20">
+									<img
+										src={ogpImageUrl}
+										alt={report.title || report.url}
+										loading="lazy"
+										referrerPolicy="no-referrer"
+										className="h-52 w-full object-cover sm:h-64"
+									/>
+								</div>
+							) : (
+								<div className="rounded-lg border bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
+									画像は登録されていません。
+								</div>
+							)}
 						</div>
 					</section>
 				</div>
