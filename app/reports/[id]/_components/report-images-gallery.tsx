@@ -77,7 +77,7 @@ export function ReportImagesGallery({
 			<div className="space-y-3">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<p className="text-sm text-muted-foreground">
-						OGP画像やスクリーンショットなどの画像が確認できます。
+						OGP画像やスクリーンショットなどの証拠画像が追加されたらこちらに表示されます。
 					</p>
 					{totalImages > 1 ? (
 						<SlideCounter current={currentIndex + 1} total={totalImages} />

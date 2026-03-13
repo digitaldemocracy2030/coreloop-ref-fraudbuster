@@ -12,12 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
+	ReportDetailResponse,
 	ReportSortOrder,
 	ReportSummary,
 	ReportsListResponse,
 } from "@/lib/types/api";
 
 const PAGE_SIZE = 12;
+const PINNED_REPORT_ID = "rpt8k2m1xq9v";
 const INITIAL_SKELETON_IDS = [
 	"report-skeleton-1",
 	"report-skeleton-2",
@@ -41,6 +43,42 @@ function normalizeResponse(payload: unknown): ReportsListResponse {
 	}
 
 	return { items: [], nextCursor: null };
+}
+
+function toPinnedReportSummary(
+	report: ReportDetailResponse | null,
+): ReportSummary | null {
+	if (!report) return null;
+
+	return {
+		id: report.id,
+		url: report.url,
+		title: report.title,
+		description: report.description,
+		createdAt: report.createdAt,
+		riskScore: report.riskScore,
+		platform: report.platform,
+		category: report.category,
+		status: report.status,
+		images: report.images.map((image) => ({
+			id: image.id,
+			imageUrl: image.imageUrl,
+		})),
+	};
+}
+
+function pinReportToFront(
+	reports: ReportSummary[],
+	pinnedReport: ReportSummary | null,
+) {
+	if (!pinnedReport) {
+		return reports;
+	}
+
+	return [
+		pinnedReport,
+		...reports.filter((report) => report.id !== pinnedReport.id),
+	];
 }
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
@@ -219,6 +257,7 @@ export function HomeReportsGrid() {
 	const isFetchingRef = React.useRef(false);
 	const requestVersionRef = React.useRef(0);
 	const abortRef = React.useRef<AbortController | null>(null);
+	const pinnedReportRef = React.useRef<ReportSummary | null>(null);
 
 	const fetchReports = React.useCallback(
 		async ({
@@ -248,10 +287,41 @@ export function HomeReportsGrid() {
 					params.set("cursor", cursor);
 				}
 
-				const response = await fetch(`/api/reports?${params.toString()}`, {
-					cache: "no-store",
-					signal: controller.signal,
-				});
+				const pinnedReportPromise =
+					append || pinnedReportRef.current
+						? Promise.resolve(pinnedReportRef.current)
+						: fetch(`/api/reports/${PINNED_REPORT_ID}`, {
+								cache: "no-store",
+								signal: controller.signal,
+							})
+								.then(async (response) => {
+									if (!response.ok) {
+										return null;
+									}
+
+									return toPinnedReportSummary(
+										(await response.json()) as ReportDetailResponse,
+									);
+								})
+								.catch((error: unknown) => {
+									if (
+										error instanceof DOMException &&
+										error.name === "AbortError"
+									) {
+										throw error;
+									}
+
+									console.error("Failed to fetch pinned report:", error);
+									return null;
+								});
+
+				const [response, pinnedReport] = await Promise.all([
+					fetch(`/api/reports?${params.toString()}`, {
+						cache: "no-store",
+						signal: controller.signal,
+					}),
+					pinnedReportPromise,
+				]);
 
 				if (!response.ok) {
 					throw new Error(`Failed to fetch reports: ${response.status}`);
@@ -259,9 +329,15 @@ export function HomeReportsGrid() {
 
 				const payload = normalizeResponse(await response.json());
 				if (version !== requestVersionRef.current) return;
+				if (pinnedReport) {
+					pinnedReportRef.current = pinnedReport;
+				}
 
 				setReports((prev) =>
-					append ? [...prev, ...payload.items] : payload.items,
+					pinReportToFront(
+						append ? [...prev, ...payload.items] : payload.items,
+						pinnedReport ?? pinnedReportRef.current,
+					),
 				);
 				setNextCursor(payload.nextCursor);
 				setErrorMessage(null);
