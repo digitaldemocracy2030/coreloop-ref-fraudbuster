@@ -7,7 +7,9 @@ import {
 	LoaderCircle,
 	ShieldAlert,
 	ShieldCheck,
+	Trash2,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
 import * as React from "react";
@@ -65,6 +67,12 @@ type ReportFormProps = {
 	}>;
 };
 
+type SelectedReportImage = {
+	id: string;
+	file: File;
+	previewUrl: string;
+};
+
 const getInitialFormData = () => ({
 	url: "",
 	platformId: "",
@@ -112,9 +120,12 @@ export function ReportForm({ platforms }: ReportFormProps) {
 	const [submissionElapsedSeconds, setSubmissionElapsedSeconds] =
 		React.useState(0);
 	const [submissionSucceeded, setSubmissionSucceeded] = React.useState(false);
-	const [files, setFiles] = React.useState<File[]>([]);
+	const [selectedImages, setSelectedImages] = React.useState<
+		SelectedReportImage[]
+	>([]);
 	const turnstileContainerRef = React.useRef<HTMLDivElement | null>(null);
 	const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+	const selectedImagesRef = React.useRef<SelectedReportImage[]>([]);
 	const formStartedAtRef = React.useRef(Date.now());
 
 	const isFormComplete =
@@ -170,6 +181,18 @@ export function ReportForm({ platforms }: ReportFormProps) {
 		};
 	}, [turnstileWidgetId]);
 
+	React.useEffect(() => {
+		selectedImagesRef.current = selectedImages;
+	}, [selectedImages]);
+
+	React.useEffect(() => {
+		return () => {
+			for (const image of selectedImagesRef.current) {
+				URL.revokeObjectURL(image.previewUrl);
+			}
+		};
+	}, []);
+
 	const resetTurnstile = React.useCallback(() => {
 		setTurnstileToken("");
 		if (!turnstileWidgetId) return;
@@ -179,11 +202,14 @@ export function ReportForm({ platforms }: ReportFormProps) {
 	}, [turnstileWidgetId]);
 
 	const resetSelectedFiles = React.useCallback(() => {
-		setFiles([]);
+		for (const image of selectedImages) {
+			URL.revokeObjectURL(image.previewUrl);
+		}
+		setSelectedImages([]);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
 		}
-	}, []);
+	}, [selectedImages]);
 
 	const resetForm = React.useCallback(() => {
 		setFormData(getInitialFormData());
@@ -197,32 +223,84 @@ export function ReportForm({ platforms }: ReportFormProps) {
 
 	const handleFileChange = React.useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
-			const selectedFiles = Array.from(event.target.files ?? []);
-			if (selectedFiles.length > MAX_PUBLIC_REPORT_IMAGE_FILE_COUNT) {
-				toast.error(
-					`画像は最大${MAX_PUBLIC_REPORT_IMAGE_FILE_COUNT}枚まで添付できます。`,
-				);
-				resetSelectedFiles();
+			const incomingFiles = Array.from(event.target.files ?? []);
+			if (incomingFiles.length === 0) {
 				return;
 			}
 
-			const oversizedFile = selectedFiles.find(
-				(file) => file.size > MAX_PUBLIC_REPORT_IMAGE_FILE_SIZE_BYTES,
-			);
-			if (oversizedFile) {
+			const remainingSlots =
+				MAX_PUBLIC_REPORT_IMAGE_FILE_COUNT - selectedImages.length;
+			if (remainingSlots <= 0) {
+				event.target.value = "";
 				toast.error(
-					`${oversizedFile.name} は${Math.floor(
+					`画像は最大${MAX_PUBLIC_REPORT_IMAGE_FILE_COUNT}枚まで添付できます。`,
+				);
+				return;
+			}
+
+			let hitLimit = false;
+			let oversizedFileName: string | null = null;
+			const nextImages: SelectedReportImage[] = [];
+
+			for (const file of incomingFiles) {
+				if (file.size > MAX_PUBLIC_REPORT_IMAGE_FILE_SIZE_BYTES) {
+					oversizedFileName ??= file.name;
+					continue;
+				}
+				if (nextImages.length >= remainingSlots) {
+					hitLimit = true;
+					break;
+				}
+				nextImages.push({
+					id: crypto.randomUUID(),
+					file,
+					previewUrl: URL.createObjectURL(file),
+				});
+			}
+
+			event.target.value = "";
+
+			if (oversizedFileName) {
+				toast.error(
+					`${oversizedFileName} は${Math.floor(
 						MAX_PUBLIC_REPORT_IMAGE_FILE_SIZE_BYTES / 1024 / 1024,
 					)}MB以下にしてください。`,
 				);
-				resetSelectedFiles();
+			}
+			if (hitLimit) {
+				toast.error(
+					`画像は最大${MAX_PUBLIC_REPORT_IMAGE_FILE_COUNT}枚まで添付できます。`,
+				);
+			}
+			if (nextImages.length === 0) {
 				return;
 			}
 
 			setSubmissionSucceeded(false);
-			setFiles(selectedFiles);
+			setSelectedImages((current) => [...current, ...nextImages]);
 		},
-		[resetSelectedFiles],
+		[selectedImages],
+	);
+
+	const handleRemoveSelectedImage = React.useCallback(
+		(imageId: string) => {
+			const imageToRemove = selectedImages.find(
+				(image) => image.id === imageId,
+			);
+			if (!imageToRemove) {
+				return;
+			}
+
+			URL.revokeObjectURL(imageToRemove.previewUrl);
+			setSelectedImages((current) =>
+				current.filter((image) => image.id !== imageId),
+			);
+			if (fileInputRef.current) {
+				fileInputRef.current.value = "";
+			}
+			setSubmissionSucceeded(false);
+		},
+		[selectedImages],
 	);
 
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -255,8 +333,8 @@ export function ReportForm({ platforms }: ReportFormProps) {
 			requestBody.set("formStartedAt", String(formStartedAtRef.current));
 			requestBody.set("turnstileToken", turnstileToken);
 			requestBody.set("spamTrap", formData.spamTrap);
-			for (const file of files) {
-				requestBody.append("files", file);
+			for (const image of selectedImages) {
+				requestBody.append("files", image.file);
 			}
 
 			const response = await fetch("/api/reports", {
@@ -405,6 +483,9 @@ export function ReportForm({ platforms }: ReportFormProps) {
 									)}
 									MBまでです。
 								</p>
+								<p className="text-xs text-muted-foreground">
+									選択後でも画像ごとに削除でき、追加で選ぶとそのまま候補に追記されます。
+								</p>
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="report-images">添付画像</Label>
@@ -418,21 +499,57 @@ export function ReportForm({ platforms }: ReportFormProps) {
 									disabled={loading}
 								/>
 							</div>
-							{files.length > 0 ? (
+							{selectedImages.length > 0 ? (
 								<div className="rounded-lg border bg-background/70 p-3">
-									<p className="text-sm font-medium">
-										選択中の画像 {files.length}枚
-									</p>
-									<div className="mt-2 space-y-2">
-										{files.map((file) => (
+									<div className="flex items-center justify-between gap-3">
+										<p className="text-sm font-medium">
+											選択中の画像 {selectedImages.length}枚
+										</p>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onClick={resetSelectedFiles}
+											disabled={loading}
+										>
+											すべて削除
+										</Button>
+									</div>
+									<div className="mt-3 grid gap-3 sm:grid-cols-2">
+										{selectedImages.map((image, index) => (
 											<div
-												key={`${file.name}-${file.lastModified}`}
-												className="flex items-center justify-between gap-3 text-sm"
+												key={image.id}
+												className="overflow-hidden rounded-lg border bg-muted/20"
 											>
-												<span className="truncate">{file.name}</span>
-												<span className="shrink-0 text-xs text-muted-foreground">
-													{formatReportImageFileSize(file.size)}
-												</span>
+												<Image
+													src={image.previewUrl}
+													alt={`選択中の証拠画像 ${index + 1}`}
+													width={960}
+													height={720}
+													unoptimized
+													className="h-36 w-full object-cover"
+												/>
+												<div className="space-y-2 p-3">
+													<div className="space-y-1">
+														<p className="truncate text-sm font-medium">
+															{image.file.name}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															{formatReportImageFileSize(image.file.size)}
+														</p>
+													</div>
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														className="w-full"
+														onClick={() => handleRemoveSelectedImage(image.id)}
+														disabled={loading}
+													>
+														<Trash2 className="mr-2 h-4 w-4" />
+														削除
+													</Button>
+												</div>
 											</div>
 										))}
 									</div>
