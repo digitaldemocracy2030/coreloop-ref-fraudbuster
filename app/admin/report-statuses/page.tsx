@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { ExternalLink, ShieldCheck } from "lucide-react";
 import { connection } from "next/server";
 import { AdminShell } from "@/app/admin/_components/admin-shell";
 import { ReportActionsMenu } from "@/app/admin/report-statuses/_components/report-actions-menu";
@@ -111,9 +111,15 @@ export default async function AdminReportStatusesPage({
 														<p className="font-medium">
 															{report.title || "（タイトル未設定）"}
 														</p>
-														<p className="text-xs text-muted-foreground break-all">
-															{report.url}
-														</p>
+														<a
+															href={report.url}
+															target="_blank"
+															rel="noreferrer"
+															className="inline-flex items-start gap-1 text-xs text-muted-foreground break-all underline-offset-2 hover:text-foreground hover:underline"
+														>
+															<span>{report.url}</span>
+															<ExternalLink className="mt-0.5 h-3 w-3 shrink-0" />
+														</a>
 														<p className="text-xs text-muted-foreground">
 															登録画像: {report._count.images}枚
 														</p>

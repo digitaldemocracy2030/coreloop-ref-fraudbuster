@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Circle, MessageSquare } from "lucide-react";
+import { CheckCircle2, Circle, MessageSquare, Trash2 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -9,6 +9,17 @@ import { ja } from "date-fns/locale";
 import { AdminShell } from "@/app/admin/_components/admin-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
 	Card,
 	CardContent,
@@ -39,6 +50,9 @@ export default function AdminInquiriesPage() {
 	const [inquiries, setInquiries] = React.useState<Inquiry[]>([]);
 	const [isLoading, setIsLoading] = React.useState(true);
 	const [email, setEmail] = React.useState("");
+	const [deletingInquiryId, setDeletingInquiryId] = React.useState<
+		string | null
+	>(null);
 
 	const fetchInquiries = React.useCallback(async () => {
 		try {
@@ -83,6 +97,36 @@ export default function AdminInquiriesPage() {
 		} catch (error) {
 			console.error(error);
 			toast.error("ステータスの更新に失敗しました");
+		}
+	};
+
+	const deleteInquiry = async (id: string) => {
+		try {
+			setDeletingInquiryId(id);
+			const response = await fetch("/api/admin/inquiries", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id }),
+			});
+			const payload = (await response.json().catch(() => null)) as {
+				error?: string;
+			} | null;
+
+			if (!response.ok) {
+				throw new Error(payload?.error || "お問い合わせの削除に失敗しました");
+			}
+
+			setInquiries((prev) => prev.filter((item) => item.id !== id));
+			toast.success("対応完了済みのお問い合わせを削除しました");
+		} catch (error) {
+			console.error(error);
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "お問い合わせの削除に失敗しました",
+			);
+		} finally {
+			setDeletingInquiryId(null);
 		}
 	};
 
@@ -164,25 +208,62 @@ export default function AdminInquiriesPage() {
 												</div>
 											</TableCell>
 											<TableCell className="text-right">
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={() =>
-														toggleReadStatus(inquiry.id, inquiry.isRead)
-													}
-												>
+												<div className="flex justify-end gap-2">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() =>
+															toggleReadStatus(inquiry.id, inquiry.isRead)
+														}
+													>
+														{inquiry.isRead ? (
+															<>
+																<Circle className="mr-2 h-4 w-4" />
+																未読にする
+															</>
+														) : (
+															<>
+																<CheckCircle2 className="mr-2 h-4 w-4" />
+																既読にする
+															</>
+														)}
+													</Button>
 													{inquiry.isRead ? (
-														<>
-															<Circle className="mr-2 h-4 w-4" />
-															未読にする
-														</>
-													) : (
-														<>
-															<CheckCircle2 className="mr-2 h-4 w-4" />
-															既読にする
-														</>
-													)}
-												</Button>
+														<AlertDialog>
+															<AlertDialogTrigger asChild>
+																<Button
+																	variant="destructive"
+																	size="sm"
+																	disabled={deletingInquiryId === inquiry.id}
+																>
+																	<Trash2 className="mr-2 h-4 w-4" />
+																	削除
+																</Button>
+															</AlertDialogTrigger>
+															<AlertDialogContent size="sm">
+																<AlertDialogHeader>
+																	<AlertDialogTitle>
+																		このお問い合わせを削除しますか？
+																	</AlertDialogTitle>
+																	<AlertDialogDescription>
+																		対応完了として既読になっているお問い合わせのみ削除できます。この操作は元に戻せません。
+																	</AlertDialogDescription>
+																</AlertDialogHeader>
+																<AlertDialogFooter>
+																	<AlertDialogCancel>
+																		キャンセル
+																	</AlertDialogCancel>
+																	<AlertDialogAction
+																		onClick={() => deleteInquiry(inquiry.id)}
+																		variant="destructive"
+																	>
+																		削除する
+																	</AlertDialogAction>
+																</AlertDialogFooter>
+															</AlertDialogContent>
+														</AlertDialog>
+													) : null}
+												</div>
 											</TableCell>
 										</TableRow>
 									))}
