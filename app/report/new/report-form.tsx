@@ -173,7 +173,6 @@ export function ReportForm({ platforms }: ReportFormProps) {
 		setSubmissionSucceeded(true);
 		setSubmissionStartedAt(null);
 		setLoading(false);
-		formStartedAtRef.current = Date.now();
 		resetTurnstile();
 	}, [resetTurnstile]);
 

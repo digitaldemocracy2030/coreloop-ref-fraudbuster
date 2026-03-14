@@ -36,9 +36,8 @@ function parseSortOrder(value: string | null): ReportSortOrder {
 }
 
 const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
-const MAX_SUBMISSIONS_PER_WINDOW = 5;
-const MIN_SUBMISSION_INTERVAL_MS = 10 * 1000;
-const MIN_FORM_COMPLETION_MS = 6 * 1000;
+const MAX_SUBMISSIONS_PER_WINDOW = 100;
+const MIN_FORM_COMPLETION_MS = 4 * 1000;
 const rateLimitStore = new Map<string, number[]>();
 
 const createReportId = customAlphabet(
@@ -92,16 +91,6 @@ function checkAndRecordSubmission(key: string): {
 	const timestamps = (rateLimitStore.get(key) ?? []).filter(
 		(timestamp) => now - timestamp < SUBMISSION_WINDOW_MS,
 	);
-	const lastSubmission = timestamps[timestamps.length - 1];
-
-	if (lastSubmission && now - lastSubmission < MIN_SUBMISSION_INTERVAL_MS) {
-		return {
-			allowed: false,
-			retryAfterSeconds: Math.ceil(
-				(MIN_SUBMISSION_INTERVAL_MS - (now - lastSubmission)) / 1000,
-			),
-		};
-	}
 
 	if (timestamps.length >= MAX_SUBMISSIONS_PER_WINDOW) {
 		const oldest = timestamps[0];
