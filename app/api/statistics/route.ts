@@ -130,22 +130,19 @@ export async function GET(request: Request) {
 			}),
 		);
 
-		const platform: StatisticsBreakdownItem[] = platformStatsRaw.map(
-			(item) => ({
+		const platform: StatisticsBreakdownItem[] = platformStatsRaw
+			.map((item) => ({
 				id: item.platformId,
 				label:
 					item.platformId === null
 						? "未設定"
 						: (platformLabelMap.get(item.platformId) ?? "Unknown"),
 				count: item._count._all,
-			}),
-		);
+			}))
+			.sort((a, b) => b.count - a.count);
 
 		const topPlatform =
-			platform
-				.slice()
-				.sort((a, b) => b.count - a.count)
-				.find((item) => item.id !== null)?.label ?? null;
+			platform.find((item) => item.id !== null)?.label ?? null;
 
 		const trendCountMap = new Map<string, number>();
 		for (let i = 0; i < days; i += 1) {
