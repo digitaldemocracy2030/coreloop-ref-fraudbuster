@@ -6,7 +6,7 @@ import type { NextRequest, NextResponse } from "next/server";
 const ADMIN_SESSION_COOKIE_NAME = "admin_session";
 const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 const GENERIC_LOGIN_ERROR_MESSAGE =
-	"メールアドレスまたはパスワードが正しくありません。";
+	"管理者IDまたはパスワードが正しくありません。";
 const DEV_FALLBACK_SESSION_SECRET =
 	"development-only-admin-session-secret-change-me";
 

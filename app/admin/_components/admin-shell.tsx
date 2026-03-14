@@ -46,7 +46,9 @@ export function AdminShell({
 					</div>
 					<h1 className="text-3xl font-bold tracking-tight">{title}</h1>
 					<p className="text-sm text-muted-foreground">{description}</p>
-					<p className="text-sm text-muted-foreground">ログイン中: {email}</p>
+					<p className="text-sm text-muted-foreground">
+						ログイン中の管理者ID: {email}
+					</p>
 				</div>
 				<form action="/api/admin/logout" method="post">
 					<Button type="submit" variant="outline">

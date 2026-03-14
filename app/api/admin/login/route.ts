@@ -32,10 +32,12 @@ function tooManyRequestsResponse(retryAfterSeconds: number): NextResponse {
 export async function POST(request: NextRequest) {
 	try {
 		const formData = await request.formData();
-		const email =
-			typeof formData.get("email") === "string"
-				? String(formData.get("email")).trim()
-				: "";
+		const adminId =
+			typeof formData.get("adminId") === "string"
+				? String(formData.get("adminId")).trim()
+				: typeof formData.get("email") === "string"
+					? String(formData.get("email")).trim()
+					: "";
 		const password =
 			typeof formData.get("password") === "string"
 				? String(formData.get("password"))
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
 		const clientIp = getClientIp(request);
 
 		const result = evaluateAdminLoginAttempt({
-			email,
+			email: adminId,
 			password,
 			ip: clientIp,
 			authenticate: authenticateAdminCredentials,

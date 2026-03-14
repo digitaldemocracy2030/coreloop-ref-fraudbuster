@@ -55,24 +55,21 @@ export default async function AdminLoginPage({
 						<div className="rounded-md border border-yellow-600/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-800 dark:text-yellow-200">
 							<div className="flex items-start gap-2">
 								<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-								<p>
-									環境変数 `ADMIN_LOGIN_EMAIL` と `ADMIN_LOGIN_PASSWORD`
-									が未設定です。
-								</p>
+								<p>管理者ログイン用のIDとパスワードが未設定です。</p>
 							</div>
 						</div>
 					) : null}
 
 					<form action="/api/admin/login" method="post" className="space-y-4">
 						<div className="space-y-2">
-							<label htmlFor="admin-email" className="text-sm font-medium">
-								メールアドレス
+							<label htmlFor="admin-id" className="text-sm font-medium">
+								管理者ID
 							</label>
 							<Input
-								id="admin-email"
-								name="email"
-								type="email"
-								placeholder="admin@example.com"
+								id="admin-id"
+								name="adminId"
+								type="text"
+								placeholder="admin-id"
 								autoComplete="username"
 								required
 							/>
