@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { maskReportUrl } from "@/lib/report-url";
 import type {
 	ReportDetailResponse,
 	ReportSortOrder,
@@ -117,6 +118,7 @@ function isUnderReviewStatus(report: ReportSummary) {
 
 function ReportSummaryCard({ report }: { report: ReportSummary }) {
 	const thumbnailUrl = report.images[0]?.imageUrl ?? null;
+	const maskedReportUrl = maskReportUrl(report.url);
 	const [hasThumbnailError, setHasThumbnailError] = React.useState(false);
 	const router = useRouter();
 	const href = `/reports/${report.id}`;
@@ -165,7 +167,7 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 							{thumbnailUrl && !hasThumbnailError ? (
 								<img
 									src={thumbnailUrl}
-									alt={report.title || report.url}
+									alt={report.title || maskedReportUrl}
 									loading="lazy"
 									referrerPolicy="no-referrer"
 									className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
@@ -198,7 +200,7 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 								{report.title || "（タイトルなし）"}
 							</h3>
 							<p className="min-h-10 line-clamp-2 text-sm text-muted-foreground">
-								{report.description || report.url}
+								{report.description || maskedReportUrl}
 							</p>
 						</div>
 					</div>
@@ -454,7 +456,7 @@ export function HomeReportsGrid() {
 			</div>
 
 			{!hasLoadedInitial ? (
-				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 					{INITIAL_SKELETON_IDS.map((id) => (
 						<ReportSummaryCardSkeleton key={id} />
 					))}
@@ -473,7 +475,7 @@ export function HomeReportsGrid() {
 					) : null}
 
 					{reports.length > 0 ? (
-						<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 							{reports.map((report) => (
 								<ReportSummaryCard key={report.id} report={report} />
 							))}

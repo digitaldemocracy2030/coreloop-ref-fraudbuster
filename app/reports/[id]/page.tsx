@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
+import { maskReportUrl } from "@/lib/report-url";
 import { getSiteUrl } from "@/lib/site-url";
 
 async function getReportById(id: string) {
@@ -54,16 +55,6 @@ function truncateText(text: string, maxLength: number) {
 	}
 
 	return `${text.slice(0, maxLength - 1)}…`;
-}
-
-function maskReportUrl(url: string) {
-	const trimmedUrl = url.trim();
-
-	if (trimmedUrl.length <= 24) {
-		return trimmedUrl;
-	}
-
-	return `${trimmedUrl.slice(0, 16)}...${trimmedUrl.slice(-8)}`;
 }
 
 function buildReportMetadataTitle(report: ReportDetail) {
