@@ -283,7 +283,9 @@ export async function POST(
 			await tx.reportTimeline.create({
 				data: {
 					reportId,
-					actionLabel: "審査内容更新",
+					actionLabel: isCompletedReportStatus(nextStatus.statusCode)
+						? "審査完了"
+						: "審査内容更新",
 					description: timelineDescription,
 					createdBy: admin?.id ?? null,
 				},
