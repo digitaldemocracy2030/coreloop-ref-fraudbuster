@@ -42,22 +42,16 @@ export async function POST(
 			return toAdminRedirect(request, "error", "画像IDが不正です。");
 		}
 
-		const [image, admin] = await Promise.all([
-			prisma.reportImage.findFirst({
-				where: {
-					id: imageId,
-					reportId,
-				},
-				select: {
-					id: true,
-					imageUrl: true,
-				},
-			}),
-			prisma.admin.findUnique({
-				where: { email: session.email },
-				select: { id: true },
-			}),
-		]);
+		const image = await prisma.reportImage.findFirst({
+			where: {
+				id: imageId,
+				reportId,
+			},
+			select: {
+				id: true,
+				imageUrl: true,
+			},
+		});
 
 		if (!image) {
 			return toAdminRedirect(request, "error", "対象の画像が見つかりません。");
@@ -71,14 +65,6 @@ export async function POST(
 				where: { id: reportId },
 				data: {
 					updatedAt: new Date(),
-				},
-			}),
-			prisma.reportTimeline.create({
-				data: {
-					reportId,
-					actionLabel: "証拠画像削除",
-					description: "画像を1枚削除",
-					createdBy: admin?.id ?? null,
 				},
 			}),
 		]);
