@@ -1,5 +1,10 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+	ADMIN_REPORT_STATUSES_PATH,
+	buildAdminReportStatusesUrl,
+	parseAdminReportStatusesPage,
+} from "@/lib/admin-report-statuses";
 import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -14,15 +19,16 @@ import {
 	validateReportLabels,
 } from "@/lib/report-metadata";
 
-const REPORT_STATUSES_ADMIN_PATH = "/admin/report-statuses";
-
 function toAdminRedirect(
 	request: NextRequest,
+	page: number,
 	messageType: "notice" | "error",
 	message: string,
 ): NextResponse {
-	const url = new URL(REPORT_STATUSES_ADMIN_PATH, request.url);
-	url.searchParams.set(messageType, message);
+	const url = buildAdminReportStatusesUrl(request.url, {
+		page,
+		[messageType]: message,
+	});
 	return NextResponse.redirect(url, { status: 303 });
 }
 
@@ -88,9 +94,11 @@ export async function POST(
 		return NextResponse.redirect(loginUrl, { status: 303 });
 	}
 
+	const formData = await request.formData();
+	const currentPage = parseAdminReportStatusesPage(readText(formData, "page"));
+
 	try {
 		const { id: reportId } = await ctx.params;
-		const formData = await request.formData();
 		const statusId = Number.parseInt(readText(formData, "statusId"), 10);
 		const rawVerdict = readText(formData, "verdict");
 		let nextVerdict: ReportVerdictCode | null = null;
@@ -106,16 +114,22 @@ export async function POST(
 		if (!reportId || Number.isNaN(statusId)) {
 			return toAdminRedirect(
 				request,
+				currentPage,
 				"error",
 				"通報IDまたはステータスが不正です。",
 			);
 		}
 		if (labelsError) {
-			return toAdminRedirect(request, "error", labelsError);
+			return toAdminRedirect(request, currentPage, "error", labelsError);
 		}
 		if (rawVerdict.length > 0) {
 			if (!isReportVerdictCode(rawVerdict)) {
-				return toAdminRedirect(request, "error", "判定結果の値が不正です。");
+				return toAdminRedirect(
+					request,
+					currentPage,
+					"error",
+					"判定結果の値が不正です。",
+				);
 			}
 			nextVerdict = rawVerdict;
 		}
@@ -169,11 +183,17 @@ export async function POST(
 			]);
 
 		if (!report) {
-			return toAdminRedirect(request, "error", "対象の通報が見つかりません。");
+			return toAdminRedirect(
+				request,
+				currentPage,
+				"error",
+				"対象の通報が見つかりません。",
+			);
 		}
 		if (!nextStatus) {
 			return toAdminRedirect(
 				request,
+				currentPage,
 				"error",
 				"対象のステータスが見つかりません。",
 			);
@@ -181,6 +201,7 @@ export async function POST(
 		if (isCompletedReportStatus(nextStatus.statusCode) && !nextVerdict) {
 			return toAdminRedirect(
 				request,
+				currentPage,
 				"error",
 				"完了ステータスにする場合は判定結果を選択してください。",
 			);
@@ -189,6 +210,7 @@ export async function POST(
 		if (existingSelectedLabels.length !== selectedLabelIds.length) {
 			return toAdminRedirect(
 				request,
+				currentPage,
 				"error",
 				"選択されたラベルの一部が見つかりません。",
 			);
@@ -206,6 +228,7 @@ export async function POST(
 		) {
 			return toAdminRedirect(
 				request,
+				currentPage,
 				"error",
 				`ラベルは最大${MAX_REPORT_LABEL_COUNT}個まで設定できます。`,
 			);
@@ -295,18 +318,33 @@ export async function POST(
 		});
 
 		if (!result.changed) {
-			return toAdminRedirect(request, "notice", "変更はありませんでした。");
+			return toAdminRedirect(
+				request,
+				currentPage,
+				"notice",
+				"変更はありませんでした。",
+			);
 		}
 
 		revalidateTag("reports", "max");
 		revalidateTag("home-stats", "max");
-		revalidatePath(REPORT_STATUSES_ADMIN_PATH);
+		revalidatePath(ADMIN_REPORT_STATUSES_PATH);
 		revalidatePath("/admin");
 		revalidatePath("/");
 		revalidatePath(`/reports/${reportId}`);
-		return toAdminRedirect(request, "notice", "通報情報を更新しました。");
+		return toAdminRedirect(
+			request,
+			currentPage,
+			"notice",
+			"通報情報を更新しました。",
+		);
 	} catch (error) {
 		console.error("Failed to update report status:", error);
-		return toAdminRedirect(request, "error", "通報情報の更新に失敗しました。");
+		return toAdminRedirect(
+			request,
+			currentPage,
+			"error",
+			"通報情報の更新に失敗しました。",
+		);
 	}
 }

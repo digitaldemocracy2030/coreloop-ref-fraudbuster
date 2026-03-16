@@ -1,5 +1,10 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+	ADMIN_REPORT_STATUSES_PATH,
+	buildAdminReportStatusesUrl,
+	parseAdminReportStatusesPage,
+} from "@/lib/admin-report-statuses";
 import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import {
 	cleanupStoredReportImages,
@@ -9,15 +14,16 @@ import {
 } from "@/lib/report-image-storage";
 import { prisma } from "@/lib/prisma";
 
-const REPORTS_ADMIN_PATH = "/admin/report-statuses";
-
 function toAdminRedirect(
 	request: NextRequest,
+	page: number,
 	messageType: "notice" | "error",
 	message: string,
 ): NextResponse {
-	const url = new URL(REPORTS_ADMIN_PATH, request.url);
-	url.searchParams.set(messageType, message);
+	const url = buildAdminReportStatusesUrl(request.url, {
+		page,
+		[messageType]: message,
+	});
 	return NextResponse.redirect(url, { status: 303 });
 }
 
@@ -25,6 +31,12 @@ export async function POST(
 	request: NextRequest,
 	ctx: RouteContext<"/api/admin/reports/[id]">,
 ) {
+	const formData = await request.formData();
+	const currentPage = parseAdminReportStatusesPage(
+		typeof formData.get("page") === "string"
+			? String(formData.get("page"))
+			: null,
+	);
 	const session = getAdminSessionFromRequest(request);
 	if (!session) {
 		const loginUrl = new URL("/admin/login", request.url);
@@ -35,7 +47,12 @@ export async function POST(
 	try {
 		const { id: reportId } = await ctx.params;
 		if (!reportId) {
-			return toAdminRedirect(request, "error", "通報IDが不正です。");
+			return toAdminRedirect(
+				request,
+				currentPage,
+				"error",
+				"通報IDが不正です。",
+			);
 		}
 
 		const report = await prisma.report.findUnique({
@@ -50,7 +67,12 @@ export async function POST(
 			},
 		});
 		if (!report) {
-			return toAdminRedirect(request, "error", "対象の通報が見つかりません。");
+			return toAdminRedirect(
+				request,
+				currentPage,
+				"error",
+				"対象の通報が見つかりません。",
+			);
 		}
 
 		const storageImagePaths = report.images
@@ -79,12 +101,22 @@ export async function POST(
 
 		revalidateTag("reports", "max");
 		revalidateTag("home-stats", "max");
-		revalidatePath(REPORTS_ADMIN_PATH);
+		revalidatePath(ADMIN_REPORT_STATUSES_PATH);
 		revalidatePath("/admin");
 		revalidatePath(`/reports/${reportId}`);
-		return toAdminRedirect(request, "notice", "通報を削除しました。");
+		return toAdminRedirect(
+			request,
+			currentPage,
+			"notice",
+			"通報を削除しました。",
+		);
 	} catch (error) {
 		console.error("Failed to delete report:", error);
-		return toAdminRedirect(request, "error", "通報の削除に失敗しました。");
+		return toAdminRedirect(
+			request,
+			currentPage,
+			"error",
+			"通報の削除に失敗しました。",
+		);
 	}
 }

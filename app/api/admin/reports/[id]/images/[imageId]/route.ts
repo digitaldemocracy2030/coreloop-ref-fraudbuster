@@ -1,5 +1,10 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
+import {
+	ADMIN_REPORT_STATUSES_PATH,
+	buildAdminReportStatusesUrl,
+	parseAdminReportStatusesPage,
+} from "@/lib/admin-report-statuses";
 import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -9,19 +14,20 @@ import {
 	resolveSupabaseProjectOrigin,
 } from "@/lib/report-image-storage";
 
-const REPORTS_ADMIN_PATH = "/admin/report-statuses";
-
 type AdminReportImageRouteContext = {
 	params: Promise<{ id: string; imageId: string }>;
 };
 
 function toAdminRedirect(
 	request: NextRequest,
+	page: number,
 	messageType: "notice" | "error",
 	message: string,
 ): NextResponse {
-	const url = new URL(REPORTS_ADMIN_PATH, request.url);
-	url.searchParams.set(messageType, message);
+	const url = buildAdminReportStatusesUrl(request.url, {
+		page,
+		[messageType]: message,
+	});
 	return NextResponse.redirect(url, { status: 303 });
 }
 
@@ -29,6 +35,12 @@ export async function POST(
 	request: NextRequest,
 	ctx: AdminReportImageRouteContext,
 ) {
+	const formData = await request.formData();
+	const currentPage = parseAdminReportStatusesPage(
+		typeof formData.get("page") === "string"
+			? String(formData.get("page"))
+			: null,
+	);
 	const session = getAdminSessionFromRequest(request);
 	if (!session) {
 		const loginUrl = new URL("/admin/login", request.url);
@@ -39,7 +51,12 @@ export async function POST(
 	try {
 		const { id: reportId, imageId } = await ctx.params;
 		if (!reportId || !imageId) {
-			return toAdminRedirect(request, "error", "画像IDが不正です。");
+			return toAdminRedirect(
+				request,
+				currentPage,
+				"error",
+				"画像IDが不正です。",
+			);
 		}
 
 		const image = await prisma.reportImage.findFirst({
@@ -54,7 +71,12 @@ export async function POST(
 		});
 
 		if (!image) {
-			return toAdminRedirect(request, "error", "対象の画像が見つかりません。");
+			return toAdminRedirect(
+				request,
+				currentPage,
+				"error",
+				"対象の画像が見つかりません。",
+			);
 		}
 
 		await prisma.$transaction([
@@ -90,13 +112,23 @@ export async function POST(
 		}
 
 		revalidateTag("reports", "max");
-		revalidatePath(REPORTS_ADMIN_PATH);
+		revalidatePath(ADMIN_REPORT_STATUSES_PATH);
 		revalidatePath("/admin");
 		revalidatePath(`/reports/${reportId}`);
 
-		return toAdminRedirect(request, "notice", "画像を削除しました。");
+		return toAdminRedirect(
+			request,
+			currentPage,
+			"notice",
+			"画像を削除しました。",
+		);
 	} catch (error) {
 		console.error("Failed to delete admin report image:", error);
-		return toAdminRedirect(request, "error", "画像の削除に失敗しました。");
+		return toAdminRedirect(
+			request,
+			currentPage,
+			"error",
+			"画像の削除に失敗しました。",
+		);
 	}
 }

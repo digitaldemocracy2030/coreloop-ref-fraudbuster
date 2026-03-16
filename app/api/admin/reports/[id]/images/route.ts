@@ -1,11 +1,13 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import type { NextRequest } from "next/server";
+import { ADMIN_REPORT_STATUSES_PATH } from "@/lib/admin-report-statuses";
 import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import {
 	badRequestResponse,
 	errorResponse,
 	successResponse,
 } from "@/lib/api-utils";
+import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
 import { prisma } from "@/lib/prisma";
 import {
 	ReportImageUploadValidationError,
@@ -19,11 +21,56 @@ import {
 	resolveSupabaseProjectOrigin,
 } from "@/lib/report-image-storage";
 
-const REPORTS_ADMIN_PATH = "/admin/report-statuses";
-
 type AdminReportImagesRouteContext = {
 	params: Promise<{ id: string }>;
 };
+
+export async function GET(
+	request: NextRequest,
+	ctx: AdminReportImagesRouteContext,
+) {
+	const session = getAdminSessionFromRequest(request);
+	if (!session) {
+		return errorResponse("再度ログインしてください。", 401);
+	}
+
+	try {
+		const { id: reportId } = await ctx.params;
+		if (!reportId) {
+			return badRequestResponse("通報IDが不正です。");
+		}
+
+		const report = await prisma.report.findUnique({
+			where: { id: reportId },
+			select: {
+				id: true,
+				images: {
+					select: {
+						id: true,
+						imageUrl: true,
+						displayOrder: true,
+					},
+					orderBy: { displayOrder: "asc" },
+				},
+			},
+		});
+
+		if (!report) {
+			return errorResponse("対象の通報が見つかりません。", 404);
+		}
+
+		return successResponse({
+			images: report.images.map((image) => ({
+				id: image.id,
+				previewUrl: getSafeReportImageProxyPath(image),
+				displayOrder: image.displayOrder ?? null,
+			})),
+		});
+	} catch (error) {
+		console.error("Failed to fetch admin report images:", error);
+		return errorResponse("画像一覧の取得に失敗しました。", 500);
+	}
+}
 
 export async function POST(
 	request: NextRequest,
@@ -121,7 +168,7 @@ export async function POST(
 			]);
 
 			revalidateTag("reports", "max");
-			revalidatePath(REPORTS_ADMIN_PATH);
+			revalidatePath(ADMIN_REPORT_STATUSES_PATH);
 			revalidatePath("/admin");
 			revalidatePath(`/reports/${reportId}`);
 

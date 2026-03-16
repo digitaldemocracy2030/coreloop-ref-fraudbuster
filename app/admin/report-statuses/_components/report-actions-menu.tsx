@@ -1,7 +1,7 @@
 "use client";
 
 import { FilePenLine, ImagePlus, MoreHorizontal, Trash2 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -52,12 +52,8 @@ type ReportActionsMenuProps = {
 	reportId: string;
 	reportTitle: string | null;
 	reportUrl: string;
+	currentPage: number;
 	existingImageCount: number;
-	currentImages: Array<{
-		id: string;
-		previewUrl: string | null;
-		displayOrder: number | null;
-	}>;
 	reportStatuses: ReportStatusOption[];
 	selectedStatusId: number | string;
 	selectedStatusCode: string | null;
@@ -76,8 +72,8 @@ export function ReportActionsMenu({
 	reportId,
 	reportTitle,
 	reportUrl,
+	currentPage,
 	existingImageCount,
-	currentImages,
 	reportStatuses,
 	selectedStatusId,
 	selectedStatusCode,
@@ -103,14 +99,12 @@ export function ReportActionsMenu({
 	const verdictMeta = getReportVerdictMeta(selectedVerdict);
 	const statusMeta = getReportStatusMeta(selectedStatusCode);
 
-	useEffect(() => {
-		if (!isManageDialogOpen) {
-			setStatusValue(String(selectedStatusId));
-			setVerdictValue(selectedVerdict ?? "");
-			setSelectedLabelIds(selectedLabels.map((label) => label.id));
-			setNewLabelsValue("");
-		}
-	}, [isManageDialogOpen, selectedLabels, selectedStatusId, selectedVerdict]);
+	const resetManageForm = useCallback(() => {
+		setStatusValue(String(selectedStatusId));
+		setVerdictValue(selectedVerdict ?? "");
+		setSelectedLabelIds(selectedLabels.map((label) => label.id));
+		setNewLabelsValue("");
+	}, [selectedLabels, selectedStatusId, selectedVerdict]);
 
 	function toggleLabel(labelId: number, checked: boolean) {
 		setSelectedLabelIds((current) => {
@@ -140,6 +134,7 @@ export function ReportActionsMenu({
 					<DropdownMenuItem
 						onSelect={(event) => {
 							event.preventDefault();
+							resetManageForm();
 							setIsManageDialogOpen(true);
 						}}
 					>
@@ -173,8 +168,8 @@ export function ReportActionsMenu({
 				reportId={reportId}
 				reportTitle={reportTitle}
 				reportUrl={reportUrl}
+				currentPage={currentPage}
 				existingImageCount={existingImageCount}
-				currentImages={currentImages}
 				open={isImageDialogOpen}
 				onOpenChange={setIsImageDialogOpen}
 				hideTrigger
@@ -196,7 +191,9 @@ export function ReportActionsMenu({
 						id={deleteFormId}
 						action={`/api/admin/reports/${reportId}`}
 						method="post"
-					/>
+					>
+						<input type="hidden" name="page" value={currentPage} />
+					</form>
 					<AlertDialogFooter>
 						<AlertDialogCancel>キャンセル</AlertDialogCancel>
 						<AlertDialogAction
@@ -210,7 +207,15 @@ export function ReportActionsMenu({
 				</AlertDialogContent>
 			</AlertDialog>
 
-			<Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+			<Dialog
+				open={isManageDialogOpen}
+				onOpenChange={(nextOpen) => {
+					if (!nextOpen) {
+						resetManageForm();
+					}
+					setIsManageDialogOpen(nextOpen);
+				}}
+			>
 				<DialogContent className="sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>通報内容を更新</DialogTitle>
@@ -249,6 +254,7 @@ export function ReportActionsMenu({
 							method="post"
 							className="space-y-4"
 						>
+							<input type="hidden" name="page" value={currentPage} />
 							{selectedLabelIds.map((labelId) => (
 								<input
 									key={labelId}

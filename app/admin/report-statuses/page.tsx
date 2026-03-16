@@ -10,6 +10,17 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+	PaginationLink,
+} from "@/components/ui/pagination";
+import {
+	ADMIN_REPORT_STATUSES_PAGE_SIZE,
+	ADMIN_REPORT_STATUSES_PATH,
+	parseAdminReportStatusesPage,
+} from "@/lib/admin-report-statuses";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
@@ -19,10 +30,15 @@ import {
 	getReportVerdictMeta,
 	REPORT_LABEL_BADGE_CLASS_NAME,
 } from "@/lib/report-metadata";
-import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
 
 interface AdminReportStatusesPageProps {
-	searchParams: Promise<{ notice?: string; error?: string }>;
+	searchParams: Promise<{ notice?: string; error?: string; page?: string }>;
+}
+
+function buildPageHref(page: number) {
+	return page <= 1
+		? ADMIN_REPORT_STATUSES_PATH
+		: `${ADMIN_REPORT_STATUSES_PATH}?page=${page}`;
 }
 
 export default async function AdminReportStatusesPage({
@@ -33,8 +49,9 @@ export default async function AdminReportStatusesPage({
 	const params = await searchParams;
 	const notice = typeof params.notice === "string" ? params.notice : null;
 	const error = typeof params.error === "string" ? params.error : null;
+	const requestedPage = parseAdminReportStatusesPage(params.page);
 
-	const [reportStatuses, availableLabels, reports] = await Promise.all([
+	const [reportStatuses, availableLabels, totalReports] = await Promise.all([
 		prisma.reportStatus.findMany({
 			select: {
 				id: true,
@@ -49,53 +66,52 @@ export default async function AdminReportStatusesPage({
 				name: true,
 			},
 		}),
-		prisma.report.findMany({
-			orderBy: { createdAt: "desc" },
-			take: 50,
-			select: {
-				id: true,
-				title: true,
-				url: true,
-				createdAt: true,
-				statusId: true,
-				verdict: true,
-				reportLabels: {
-					select: {
-						label: {
-							select: {
-								id: true,
-								name: true,
-							},
+		prisma.report.count(),
+	]);
+	const totalPages = Math.max(
+		1,
+		Math.ceil(totalReports / ADMIN_REPORT_STATUSES_PAGE_SIZE),
+	);
+	const currentPage = Math.min(requestedPage, totalPages);
+	const reports = await prisma.report.findMany({
+		orderBy: { createdAt: "desc" },
+		skip: (currentPage - 1) * ADMIN_REPORT_STATUSES_PAGE_SIZE,
+		take: ADMIN_REPORT_STATUSES_PAGE_SIZE,
+		select: {
+			id: true,
+			title: true,
+			url: true,
+			createdAt: true,
+			statusId: true,
+			verdict: true,
+			reportLabels: {
+				select: {
+					label: {
+						select: {
+							id: true,
+							name: true,
 						},
 					},
-					orderBy: {
-						label: {
-							name: "asc",
-						},
-					},
 				},
-				_count: {
-					select: {
-						images: true,
-					},
-				},
-				images: {
-					select: {
-						id: true,
-						imageUrl: true,
-						displayOrder: true,
-					},
-					orderBy: { displayOrder: "asc" },
-				},
-				status: {
-					select: {
-						statusCode: true,
-						label: true,
+				orderBy: {
+					label: {
+						name: "asc",
 					},
 				},
 			},
-		}),
-	]);
+			_count: {
+				select: {
+					images: true,
+				},
+			},
+			status: {
+				select: {
+					statusCode: true,
+					label: true,
+				},
+			},
+		},
+	});
 	const sortedReportStatuses = [...reportStatuses].sort((left, right) =>
 		compareReportStatusCodes(left.statusCode, right.statusCode),
 	);
@@ -122,7 +138,8 @@ export default async function AdminReportStatusesPage({
 							通報一覧
 						</CardTitle>
 						<CardDescription>
-							対象通報の審査内容更新、画像追加、削除を行えます。
+							対象通報の審査内容更新、画像追加、削除を行えます。 最新{" "}
+							{ADMIN_REPORT_STATUSES_PAGE_SIZE} 件ごとに表示します。
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -130,6 +147,72 @@ export default async function AdminReportStatusesPage({
 							<p className="text-sm text-muted-foreground">
 								利用可能なステータスがありません。
 							</p>
+						) : null}
+
+						<div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+							<p>全 {totalReports} 件中</p>
+							<p>
+								{totalReports === 0
+									? "0件"
+									: `${(currentPage - 1) * ADMIN_REPORT_STATUSES_PAGE_SIZE + 1}-${
+											(currentPage - 1) * ADMIN_REPORT_STATUSES_PAGE_SIZE +
+											reports.length
+										}件を表示`}
+							</p>
+						</div>
+
+						{totalPages > 1 ? (
+							<Pagination>
+								<PaginationContent>
+									<PaginationItem>
+										{currentPage > 1 ? (
+											<PaginationLink
+												href={buildPageHref(currentPage - 1)}
+												size="default"
+											>
+												前へ
+											</PaginationLink>
+										) : (
+											<span className="inline-flex h-9 items-center rounded-md px-3 text-muted-foreground">
+												前へ
+											</span>
+										)}
+									</PaginationItem>
+									<PaginationItem>
+										<PaginationLink href={buildPageHref(currentPage)} isActive>
+											{currentPage}
+										</PaginationLink>
+									</PaginationItem>
+									{currentPage < totalPages ? (
+										<PaginationItem>
+											<PaginationLink href={buildPageHref(currentPage + 1)}>
+												{currentPage + 1}
+											</PaginationLink>
+										</PaginationItem>
+									) : null}
+									{currentPage + 1 < totalPages ? (
+										<PaginationItem>
+											<PaginationLink href={buildPageHref(totalPages)}>
+												{totalPages}
+											</PaginationLink>
+										</PaginationItem>
+									) : null}
+									<PaginationItem>
+										{currentPage < totalPages ? (
+											<PaginationLink
+												href={buildPageHref(currentPage + 1)}
+												size="default"
+											>
+												次へ
+											</PaginationLink>
+										) : (
+											<span className="inline-flex h-9 items-center rounded-md px-3 text-muted-foreground">
+												次へ
+											</span>
+										)}
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
 						) : null}
 
 						<div className="overflow-x-auto rounded-lg border">
@@ -145,6 +228,16 @@ export default async function AdminReportStatusesPage({
 									</tr>
 								</thead>
 								<tbody>
+									{reports.length === 0 ? (
+										<tr>
+											<td
+												colSpan={4}
+												className="px-3 py-8 text-center text-muted-foreground"
+											>
+												通報はまだありません。
+											</td>
+										</tr>
+									) : null}
 									{reports.map((report) => {
 										const fallbackStatusId = reportStatusOptions[0]?.id ?? "";
 										const selectedStatusId =
@@ -218,11 +311,7 @@ export default async function AdminReportStatusesPage({
 														reportTitle={report.title}
 														reportUrl={report.url}
 														existingImageCount={report._count.images}
-														currentImages={report.images.map((image) => ({
-															id: image.id,
-															previewUrl: getSafeReportImageProxyPath(image),
-															displayOrder: image.displayOrder ?? null,
-														}))}
+														currentPage={currentPage}
 														reportStatuses={reportStatusOptions}
 														selectedStatusId={selectedStatusId}
 														selectedStatusCode={

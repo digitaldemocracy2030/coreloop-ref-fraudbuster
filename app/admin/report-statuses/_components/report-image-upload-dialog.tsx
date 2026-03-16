@@ -40,12 +40,8 @@ type ReportImageUploadDialogProps = {
 	reportId: string;
 	reportTitle: string | null;
 	reportUrl: string;
+	currentPage: number;
 	existingImageCount: number;
-	currentImages: Array<{
-		id: string;
-		previewUrl: string | null;
-		displayOrder: number | null;
-	}>;
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 	hideTrigger?: boolean;
@@ -57,12 +53,21 @@ type UploadResponse = {
 	totalImageCount?: number;
 };
 
+type CurrentImagesResponse = {
+	images?: Array<{
+		id: string;
+		previewUrl: string | null;
+		displayOrder: number | null;
+	}>;
+	error?: string;
+};
+
 export function ReportImageUploadDialog({
 	reportId,
 	reportTitle,
 	reportUrl,
+	currentPage,
 	existingImageCount,
-	currentImages,
 	open: openProp,
 	onOpenChange,
 	hideTrigger = false,
@@ -71,6 +76,11 @@ export function ReportImageUploadDialog({
 	const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
 	const [files, setFiles] = React.useState<File[]>([]);
 	const [isUploading, setIsUploading] = React.useState(false);
+	const [isLoadingImages, setIsLoadingImages] = React.useState(false);
+	const [hasLoadedImages, setHasLoadedImages] = React.useState(false);
+	const [currentImages, setCurrentImages] = React.useState<
+		NonNullable<CurrentImagesResponse["images"]>
+	>([]);
 	const [isRefreshing, startTransition] = React.useTransition();
 	const isPending = isUploading || isRefreshing;
 	const displayTitle = reportTitle?.trim() || "（タイトル未設定）";
@@ -87,6 +97,65 @@ export function ReportImageUploadDialog({
 		},
 		[onOpenChange, openProp],
 	);
+
+	React.useEffect(() => {
+		if (!open || hasLoadedImages) {
+			return;
+		}
+
+		let cancelled = false;
+		const abortController = new AbortController();
+
+		async function loadCurrentImages() {
+			setIsLoadingImages(true);
+
+			try {
+				const response = await fetch(`/api/admin/reports/${reportId}/images`, {
+					cache: "no-store",
+					signal: abortController.signal,
+				});
+				const payload = (await response
+					.json()
+					.catch(() => null)) as CurrentImagesResponse | null;
+
+				if (!response.ok) {
+					if (response.status === 401) {
+						router.push("/admin/login");
+						return;
+					}
+
+					throw new Error(payload?.error || "画像一覧の取得に失敗しました。");
+				}
+
+				if (!cancelled) {
+					setCurrentImages(payload?.images ?? []);
+					setHasLoadedImages(true);
+				}
+			} catch (error) {
+				if (abortController.signal.aborted || cancelled) {
+					return;
+				}
+
+				console.error(error);
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "画像一覧の取得に失敗しました。",
+				);
+			} finally {
+				if (!cancelled) {
+					setIsLoadingImages(false);
+				}
+			}
+		}
+
+		void loadCurrentImages();
+
+		return () => {
+			cancelled = true;
+			abortController.abort();
+		};
+	}, [hasLoadedImages, open, reportId, router]);
 
 	const resetSelection = React.useCallback(() => {
 		setFiles([]);
@@ -213,7 +282,12 @@ export function ReportImageUploadDialog({
 								不要になった画像は個別に削除できます。
 							</p>
 						</div>
-						{currentImages.length > 0 ? (
+						{isLoadingImages ? (
+							<div className="flex items-center justify-center rounded-lg border bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
+								<LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+								画像を読み込んでいます...
+							</div>
+						) : currentImages.length > 0 ? (
 							<div className="grid gap-3 sm:grid-cols-2">
 								{currentImages.map((image, index) => (
 									<div
@@ -262,7 +336,13 @@ export function ReportImageUploadDialog({
 														id={`delete-report-image-${image.id}`}
 														action={`/api/admin/reports/${reportId}/images/${image.id}`}
 														method="post"
-													/>
+													>
+														<input
+															type="hidden"
+															name="page"
+															value={currentPage}
+														/>
+													</form>
 													<AlertDialogFooter>
 														<AlertDialogCancel>キャンセル</AlertDialogCancel>
 														<AlertDialogAction
