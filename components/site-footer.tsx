@@ -1,5 +1,6 @@
 import { ShieldAlert } from "lucide-react";
 import Link from "next/link";
+import { SITE_NAME } from "@/lib/site";
 
 export function SiteFooter() {
 	return (
@@ -10,7 +11,7 @@ export function SiteFooter() {
 						<div className="flex items-center space-x-2">
 							<ShieldAlert className="h-6 w-6 text-primary" />
 							<span className="font-bold text-xl tracking-tight">
-								AntiFraud
+								{SITE_NAME}
 							</span>
 						</div>
 						<p className="text-sm text-muted-foreground max-w-xs">

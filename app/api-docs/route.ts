@@ -2,6 +2,7 @@ import {
 	createSwaggerUnavailableResponse,
 	isSwaggerPubliclyAccessible,
 } from "@/lib/swagger/access";
+import { SITE_API_TITLE } from "@/lib/site";
 
 const SWAGGER_UI_CSS_URL = "https://unpkg.com/swagger-ui-dist@5/swagger-ui.css";
 const SWAGGER_UI_BUNDLE_URL =
@@ -17,7 +18,7 @@ function renderSwaggerHtml(openApiUrl: string): string {
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>AntiFraud API Docs</title>
+	<title>${SITE_API_TITLE} Docs</title>
 	<link rel="stylesheet" href="${SWAGGER_UI_CSS_URL}" />
 	<style>
 		html, body {

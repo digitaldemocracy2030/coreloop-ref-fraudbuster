@@ -1,3 +1,5 @@
+import { SITE_API_TITLE, SITE_NAME } from "@/lib/site";
+
 type OpenApiDocument = {
 	openapi: string;
 	info: {
@@ -32,10 +34,9 @@ export function createOpenApiDocument(origin: string): OpenApiDocument {
 	return {
 		openapi: "3.0.3",
 		info: {
-			title: "AntiFraud API",
+			title: SITE_API_TITLE,
 			version: "1.0.0",
-			description:
-				"AntiFraud の公開 API 仕様です。実装は Next.js App Router の Route Handler に対応しています。",
+			description: `${SITE_NAME} の公開 API 仕様です。実装は Next.js App Router の Route Handler に対応しています。`,
 		},
 		servers: [
 			{

@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE } from "@/lib/site";
 import { getSiteUrl } from "@/lib/site-url";
 
 const siteUrl = getSiteUrl();
@@ -27,30 +28,27 @@ const notoSansJP = Noto_Sans_JP({
 
 export const metadata: Metadata = {
 	metadataBase: new URL(siteUrl),
-	title: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
-	description:
-		"SNSやWebサイトの広告詐欺情報をみんなの力で集約し、共有・検索できるプラットフォーム。",
+	title: SITE_TITLE,
+	description: SITE_DESCRIPTION,
 	openGraph: {
-		title: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
-		description:
-			"SNSやWebサイトの広告詐欺情報をみんなの力で集約し、共有・検索できるプラットフォーム。",
+		title: SITE_TITLE,
+		description: SITE_DESCRIPTION,
 		type: "website",
 		locale: "ja_JP",
-		siteName: "AntiFraud",
+		siteName: SITE_NAME,
 		images: [
 			{
 				url: "/ogp.png",
 				width: 1200,
 				height: 630,
-				alt: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
+				alt: SITE_TITLE,
 			},
 		],
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "AntiFraud - ネット広告詐欺通報・検索プラットフォーム",
-		description:
-			"SNSやWebサイトの広告詐欺情報をみんなの力で集約し、共有・検索できるプラットフォーム。",
+		title: SITE_TITLE,
+		description: SITE_DESCRIPTION,
 		images: ["/ogp.png"],
 	},
 };

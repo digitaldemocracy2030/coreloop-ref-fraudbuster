@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
-	title: "プライバシーポリシー | AntiFraud",
-	description:
-		"AntiFraud（ネット詐欺通報・検索プラットフォーム）のプライバシーポリシーです。",
+	title: `プライバシーポリシー | ${SITE_NAME}`,
+	description: `${SITE_NAME}（ネット詐欺通報・検索プラットフォーム）のプライバシーポリシーです。`,
 };
 
 type PrivacySection = {

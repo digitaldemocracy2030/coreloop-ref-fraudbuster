@@ -20,6 +20,7 @@ import {
 } from "@/lib/report-metadata";
 import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
 import { maskReportUrl } from "@/lib/report-url";
+import { SITE_NAME } from "@/lib/site";
 import { getSiteUrl } from "@/lib/site-url";
 
 async function getReportById(id: string) {
@@ -84,7 +85,7 @@ function truncateText(text: string, maxLength: number) {
 }
 
 function buildReportMetadataTitle(report: ReportDetail) {
-	return `【注意喚起】${report.title?.trim() || maskReportUrl(report.url)} | AntiFraud`;
+	return `【注意喚起】${report.title?.trim() || maskReportUrl(report.url)} | ${SITE_NAME}`;
 }
 
 function buildReportMetadataDescription(report: ReportDetail) {
@@ -118,7 +119,7 @@ export async function generateMetadata({
 
 	if (!report) {
 		return {
-			title: "通報が見つかりません | AntiFraud",
+			title: `通報が見つかりません | ${SITE_NAME}`,
 			description: "指定された通報は見つかりませんでした。",
 			robots: {
 				index: false,
@@ -145,11 +146,11 @@ export async function generateMetadata({
 			url: pageUrl,
 			type: "article",
 			locale: "ja_JP",
-			siteName: "AntiFraud",
+			siteName: SITE_NAME,
 			images: [
 				{
 					url: imageUrl,
-					alt: report.title?.trim() || "AntiFraud 通報詳細",
+					alt: report.title?.trim() || `${SITE_NAME} 通報詳細`,
 				},
 			],
 		},

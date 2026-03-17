@@ -10,6 +10,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { SITE_NAME } from "@/lib/site";
 
 export const OPEN_SITE_INTRODUCTION_MODAL_EVENT =
 	"open-site-introduction-modal";
@@ -39,7 +40,7 @@ export function SiteIntroductionModal() {
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:max-w-xl sm:p-6">
 				<DialogHeader className="text-center">
-					<DialogTitle className="text-center">AntiFraudについて</DialogTitle>
+					<DialogTitle className="text-center">{SITE_NAME}について</DialogTitle>
 				</DialogHeader>
 
 				<ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground">

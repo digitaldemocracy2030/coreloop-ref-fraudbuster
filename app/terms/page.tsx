@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
-	title: "利用規約 | AntiFraud",
-	description:
-		"AntiFraud（ネット詐欺通報・検索プラットフォーム）の利用規約です。",
+	title: `利用規約 | ${SITE_NAME}`,
+	description: `${SITE_NAME}（ネット詐欺通報・検索プラットフォーム）の利用規約です。`,
 };
 
 const TERMS_SECTIONS = [
 	{
 		title: "第1条（適用）",
 		paragraphs: [
-			"本規約は、AntiFraud（以下「本サービス」）の提供条件および利用者と運営者との間の権利義務関係を定めるものです。",
+			`本規約は、${SITE_NAME}（以下「本サービス」）の提供条件および利用者と運営者との間の権利義務関係を定めるものです。`,
 			"利用者は、本規約に同意したうえで本サービスを利用するものとします。",
 		],
 	},
@@ -111,7 +111,7 @@ export default function TermsPage() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>AntiFraud 利用規約</CardTitle>
+					<CardTitle>{SITE_NAME} 利用規約</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-6 text-sm leading-7 text-muted-foreground">
 					{TERMS_SECTIONS.map((section) => (
