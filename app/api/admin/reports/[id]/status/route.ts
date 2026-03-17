@@ -307,8 +307,8 @@ export async function POST(
 				data: {
 					reportId,
 					actionLabel: isCompletedReportStatus(nextStatus.statusCode)
-						? "審査完了"
-						: "審査内容更新",
+						? "判定済み"
+						: "内容更新",
 					description: timelineDescription,
 					createdBy: admin?.id ?? null,
 				},

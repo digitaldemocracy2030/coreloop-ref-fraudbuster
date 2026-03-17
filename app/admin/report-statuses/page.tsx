@@ -138,7 +138,7 @@ export default async function AdminReportStatusesPage({
 							通報一覧
 						</CardTitle>
 						<CardDescription>
-							対象通報の審査内容更新、画像追加、削除を行えます。 最新{" "}
+							対象通報の内容更新、画像追加、削除を行えます。 最新{" "}
 							{ADMIN_REPORT_STATUSES_PAGE_SIZE} 件ごとに表示します。
 						</CardDescription>
 					</CardHeader>

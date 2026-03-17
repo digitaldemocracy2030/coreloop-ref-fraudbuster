@@ -136,7 +136,7 @@ INSERT INTO report_images (id, report_id, image_url, display_order, created_at) 
 INSERT INTO report_timelines (id, report_id, action_label, description, created_by, occurred_at) VALUES
   ('32000000-0000-4000-8000-000000000001', 'rpt8k2m1xq9v', 'ユーザー通報受付', '通報フォームから案件を受理。', NULL, CURRENT_TIMESTAMP - INTERVAL '9 days'),
   ('32000000-0000-4000-8000-000000000002', 'rpt8k2m1xq9v', '関係各所で審査', '関係各所と連携し、通報内容の審査を進めています。', '10000000-0000-4000-8000-000000000002', CURRENT_TIMESTAMP - INTERVAL '8 days'),
-  ('32000000-0000-4000-8000-000000000003', 'rpt8k2m1xq9v', '詐欺確定', '複数の同種報告と照合し詐欺確定と判定。', '10000000-0000-4000-8000-000000000001', CURRENT_TIMESTAMP - INTERVAL '7 days'),
+  ('32000000-0000-4000-8000-000000000003', 'rpt8k2m1xq9v', '詐欺判定', '複数の同種報告と照合し詐欺判定と判断。', '10000000-0000-4000-8000-000000000001', CURRENT_TIMESTAMP - INTERVAL '7 days'),
   ('32000000-0000-4000-8000-000000000004', 'rpt4d7n3b6ty', '調査開始', '投資勧誘の証拠資料を精査中。', '10000000-0000-4000-8000-000000000002', CURRENT_TIMESTAMP - INTERVAL '5 days'),
   ('32000000-0000-4000-8000-000000000005', 'rpt1z5c8w2hj', '追加情報待ち', '投稿者へ追加スクリーンショット提出を依頼。', '10000000-0000-4000-8000-000000000002', CURRENT_TIMESTAMP - INTERVAL '2 days');
 

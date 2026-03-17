@@ -12,7 +12,7 @@ const MOCK_STATISTICS: StatisticsResponse = {
 	breakdown: {
 		status: [
 			{ id: 1, label: "調査中", count: 120 },
-			{ id: 2, label: "詐欺確定", count: 80 },
+			{ id: 2, label: "詐欺判定", count: 80 },
 		],
 		category: [
 			{ id: 1, label: "フィッシング", count: 140 },

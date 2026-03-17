@@ -49,7 +49,7 @@ const REPORT_VERDICT_META: Record<
 	{ label: string; badgeClassName: string }
 > = {
 	[REPORT_VERDICT_CODES.CONFIRMED_FRAUD]: {
-		label: "詐欺確定",
+		label: "詐欺判定",
 		badgeClassName:
 			"border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200",
 	},

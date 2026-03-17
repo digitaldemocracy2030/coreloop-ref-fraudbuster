@@ -308,7 +308,7 @@ export function ReportActionsMenu({
 											<NativeSelectOption
 												value={REPORT_VERDICT_CODES.CONFIRMED_FRAUD}
 											>
-												詐欺確定
+												詐欺判定
 											</NativeSelectOption>
 											<NativeSelectOption
 												value={REPORT_VERDICT_CODES.HIGH_RISK}
