@@ -36,6 +36,8 @@ export function SiteHeader() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const [isBetaBannerVisible, setIsBetaBannerVisible] = React.useState(true);
+	const [isCrowdfundingBannerVisible, setIsCrowdfundingBannerVisible] =
+		React.useState(true);
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
 	const openIntroductionModal = React.useCallback(() => {
@@ -214,6 +216,34 @@ export function SiteHeader() {
 							className="-mt-0.5 h-8 w-8 shrink-0 rounded-full text-amber-950 hover:bg-amber-200 hover:text-amber-950 sm:mt-0"
 							aria-label="ベータ版に関するお知らせを閉じる"
 							onClick={() => setIsBetaBannerVisible(false)}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			) : null}
+			{isCrowdfundingBannerVisible ? (
+				<div className="border-t border-sky-200/80 bg-sky-50 text-sky-950">
+					<div className="container flex items-start gap-3 py-2 text-sm leading-relaxed sm:items-center">
+						<div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+							<p className="font-medium">クラウドファンディング実施中！</p>
+							<Link
+								href="https://camp-fire.jp/projects/930941/view"
+								target="_blank"
+								rel="noreferrer"
+								className="inline-flex items-center gap-1 font-medium text-sky-700 underline underline-offset-4 transition-colors hover:text-sky-900"
+							>
+								<span>詳しくはこちら</span>
+								<ExternalLink className="h-3.5 w-3.5 shrink-0" />
+							</Link>
+						</div>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 shrink-0 rounded-full text-sky-950 hover:bg-sky-100 hover:text-sky-950"
+							aria-label="クラウドファンディングのお知らせを閉じる"
+							onClick={() => setIsCrowdfundingBannerVisible(false)}
 						>
 							<X className="h-4 w-4" />
 						</Button>
