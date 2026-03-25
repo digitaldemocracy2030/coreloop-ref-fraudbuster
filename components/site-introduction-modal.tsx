@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +57,23 @@ export function SiteIntroductionModal() {
 				<div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
 					<p>
 						現在はベータ版（試験運用版）です。現時点でできることは、詐欺広告や疑わしいリンクに関する通報の登録のみです。この点をご理解のうえご利用ください。
+					</p>
+				</div>
+
+				<div className="space-y-2 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-950">
+					<p className="font-semibold">【クラウドファンディング実施中】</p>
+					<p>
+						本プロジェクトでは、サービスの継続・発展に向けたクラウドファンディングを2026年6月5日まで実施しています。開発の背景や私たちの想い、ご支援プランの詳細は下記ページをご覧ください。
+					</p>
+					<p>
+						<Link
+							href="https://camp-fire.jp/projects/930941/view"
+							target="_blank"
+							rel="noreferrer"
+							className="font-medium underline underline-offset-4 transition-colors hover:text-sky-700"
+						>
+							https://camp-fire.jp/projects/930941/view
+						</Link>
 					</p>
 				</div>
 
