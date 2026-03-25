@@ -111,9 +111,9 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 	const statusMeta = getReportStatusMeta(report.status?.code);
 	const verdictMeta = getReportVerdictMeta(report.verdict?.code);
 	const visibleLabels = report.labels.slice(0, 2);
+	const statusLabel = report.status?.label ?? null;
 	const shouldShowStatusBadge =
-		Boolean(report.status?.label) &&
-		!isCompletedReportStatus(report.status?.code);
+		Boolean(statusLabel) && !isCompletedReportStatus(report.status?.code);
 
 	React.useEffect(() => {
 		if (!thumbnailUrl) {
@@ -146,7 +146,7 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 									variant="outline"
 									className={statusMeta?.badgeClassName ?? undefined}
 								>
-									{report.status.label}
+									{statusLabel}
 								</Badge>
 							) : null}
 							{report.verdict?.label ? (
