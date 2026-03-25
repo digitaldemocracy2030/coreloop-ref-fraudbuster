@@ -102,10 +102,6 @@ function formatDate(value: string | null) {
 	return Number.isNaN(date.getTime()) ? "日付不明" : dateFormatter.format(date);
 }
 
-function isUnderReviewStatus(report: ReportSummary) {
-	return !isCompletedReportStatus(report.status?.code);
-}
-
 function ReportSummaryCard({ report }: { report: ReportSummary }) {
 	const thumbnailUrl = report.images[0]?.imageUrl ?? null;
 	const maskedReportUrl = maskReportUrl(report.url);
@@ -115,6 +111,9 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 	const statusMeta = getReportStatusMeta(report.status?.code);
 	const verdictMeta = getReportVerdictMeta(report.verdict?.code);
 	const visibleLabels = report.labels.slice(0, 2);
+	const shouldShowStatusBadge =
+		Boolean(report.status?.label) &&
+		!isCompletedReportStatus(report.status?.code);
 
 	React.useEffect(() => {
 		if (!thumbnailUrl) {
@@ -142,7 +141,7 @@ function ReportSummaryCard({ report }: { report: ReportSummary }) {
 				<CardContent className="flex h-full items-stretch gap-4 p-4 sm:p-5">
 					<div className="w-36 shrink-0 space-y-2 sm:w-44">
 						<div className="flex min-h-5 flex-wrap items-center gap-2 overflow-hidden">
-							{report.status?.label ? (
+							{shouldShowStatusBadge ? (
 								<Badge
 									variant="outline"
 									className={statusMeta?.badgeClassName ?? undefined}
