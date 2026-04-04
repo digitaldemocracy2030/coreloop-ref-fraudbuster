@@ -252,7 +252,7 @@ export function ReportActionsMenu({
 					setIsManageDialogOpen(nextOpen);
 				}}
 			>
-				<DialogContent className="sm:max-w-2xl">
+				<DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>通報内容を更新</DialogTitle>
 						<DialogDescription>
@@ -260,7 +260,7 @@ export function ReportActionsMenu({
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="relative space-y-4">
+					<div className="relative min-w-0 space-y-4">
 						{isUpdatingStatus ? (
 							<div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
 								<div className="inline-flex items-center rounded-full border bg-background px-4 py-2 text-sm font-medium shadow-sm">
@@ -270,9 +270,14 @@ export function ReportActionsMenu({
 							</div>
 						) : null}
 
-						<div className="rounded-lg border bg-muted/30 p-4 text-sm">
-							<p className="font-medium">{displayTitle}</p>
-							<p className="mt-1 break-all text-muted-foreground">
+						<div className="min-w-0 rounded-lg border bg-muted/30 p-4 text-sm">
+							<p className="line-clamp-1 font-medium" title={displayTitle}>
+								{displayTitle}
+							</p>
+							<p
+								className="mt-1 truncate text-muted-foreground"
+								title={reportUrl}
+							>
 								{reportUrl}
 							</p>
 							<div className="mt-3 flex flex-wrap gap-2">
