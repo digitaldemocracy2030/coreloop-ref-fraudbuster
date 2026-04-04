@@ -131,22 +131,22 @@ export async function POST(request: NextRequest) {
 		const statusId =
 			rawStatusId.length > 0 ? Number.parseInt(rawStatusId, 10) : null;
 		const rawVerdict = readText(formData, "verdict");
-		const updateLabels = formData.get("updateLabels") === "1";
+		const forceLabelUpdate = formData.get("updateLabels") === "1";
+		const clearLabels = formData.get("clearLabels") === "1";
 		let nextVerdict: ReportVerdictCode | null = null;
-		const selectedLabelIds = updateLabels
-			? formData
-					.getAll("selectedLabelIds")
-					.map((value) =>
-						typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN,
-					)
-					.filter((value) => Number.isInteger(value) && value > 0)
-			: [];
-		const parsedNewLabels = updateLabels
-			? parseReportLabels(readText(formData, "newLabels"))
-			: [];
-		const labelsError = updateLabels
-			? validateReportLabels(parsedNewLabels)
-			: null;
+		const selectedLabelIds = formData
+			.getAll("selectedLabelIds")
+			.map((value) =>
+				typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN,
+			)
+			.filter((value) => Number.isInteger(value) && value > 0);
+		const parsedNewLabels = parseReportLabels(readText(formData, "newLabels"));
+		const labelsError = validateReportLabels(parsedNewLabels);
+		const updateLabels =
+			forceLabelUpdate ||
+			clearLabels ||
+			selectedLabelIds.length > 0 ||
+			parsedNewLabels.length > 0;
 
 		if (reportIds.length === 0) {
 			return toAdminRedirect(
