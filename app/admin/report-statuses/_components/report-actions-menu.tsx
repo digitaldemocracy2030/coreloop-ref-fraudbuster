@@ -39,6 +39,7 @@ import {
 	NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import type { AdminReportStatusesFilters } from "@/lib/admin-report-statuses";
 import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
@@ -59,6 +60,7 @@ type ReportActionsMenuProps = {
 	reportTitle: string | null;
 	reportUrl: string;
 	currentPage: number;
+	filters: AdminReportStatusesFilters;
 	existingImageCount: number;
 	reportStatuses: ReportStatusOption[];
 	selectedStatusId: number | string;
@@ -79,6 +81,7 @@ export function ReportActionsMenu({
 	reportTitle,
 	reportUrl,
 	currentPage,
+	filters,
 	existingImageCount,
 	reportStatuses,
 	selectedStatusId,
@@ -200,6 +203,29 @@ export function ReportActionsMenu({
 						method="post"
 					>
 						<input type="hidden" name="page" value={currentPage} />
+						{filters.statusIds.map((statusId) => (
+							<input
+								key={statusId}
+								type="hidden"
+								name="returnStatusId"
+								value={statusId}
+							/>
+						))}
+						<input
+							type="hidden"
+							name="returnImageFilter"
+							value={filters.imageFilter}
+						/>
+						<input
+							type="hidden"
+							name="returnVerdictFilter"
+							value={filters.verdictFilter}
+						/>
+						<input
+							type="hidden"
+							name="returnLabelFilter"
+							value={filters.labelFilter}
+						/>
 					</form>
 					<AlertDialogFooter>
 						<AlertDialogCancel>キャンセル</AlertDialogCancel>
@@ -275,6 +301,29 @@ export function ReportActionsMenu({
 							onSubmit={() => setIsUpdatingStatus(true)}
 						>
 							<input type="hidden" name="page" value={currentPage} />
+							{filters.statusIds.map((statusId) => (
+								<input
+									key={statusId}
+									type="hidden"
+									name="returnStatusId"
+									value={statusId}
+								/>
+							))}
+							<input
+								type="hidden"
+								name="returnImageFilter"
+								value={filters.imageFilter}
+							/>
+							<input
+								type="hidden"
+								name="returnVerdictFilter"
+								value={filters.verdictFilter}
+							/>
+							<input
+								type="hidden"
+								name="returnLabelFilter"
+								value={filters.labelFilter}
+							/>
 							{selectedLabelIds.map((labelId) => (
 								<input
 									key={labelId}

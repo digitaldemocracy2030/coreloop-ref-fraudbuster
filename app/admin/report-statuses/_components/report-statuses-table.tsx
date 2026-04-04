@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, ExternalLink, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BulkReportImageDeleteDialog } from "@/app/admin/report-statuses/_components/bulk-report-image-delete-dialog";
 import { ReportActionsMenu } from "@/app/admin/report-statuses/_components/report-actions-menu";
@@ -26,6 +27,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
 	ADMIN_REPORT_STATUSES_PAGE_SIZE,
 	ADMIN_REPORT_STATUSES_PATH,
+	type AdminReportStatusesFilters,
+	buildAdminReportStatusesPath,
+	hasActiveAdminReportStatusesFilters,
 } from "@/lib/admin-report-statuses";
 import {
 	getReportStatusMeta,
@@ -68,22 +72,30 @@ type ReportRow = {
 type ReportStatusesTableProps = {
 	availableLabels: ReportLabel[];
 	currentPage: number;
+	filters: AdminReportStatusesFilters;
 	reportStatusOptions: ReportStatusOption[];
+	reportVerdictOptions: Array<{
+		value: ReportVerdictCode;
+		label: string;
+	}>;
 	reports: ReportRow[];
 	totalPages: number;
 	totalReports: number;
 };
 
-function buildPageHref(page: number) {
-	return page <= 1
-		? ADMIN_REPORT_STATUSES_PATH
-		: `${ADMIN_REPORT_STATUSES_PATH}?page=${page}`;
+function buildPageHref(page: number, filters: AdminReportStatusesFilters) {
+	return buildAdminReportStatusesPath({
+		page,
+		filters,
+	});
 }
 
 export function ReportStatusesTable({
 	availableLabels,
 	currentPage,
+	filters,
 	reportStatusOptions,
+	reportVerdictOptions,
 	reports,
 	totalPages,
 	totalReports,
@@ -96,6 +108,7 @@ export function ReportStatusesTable({
 		reports.length > 0 && selectedReportIds.length === reports.length;
 	const someVisibleSelected =
 		selectedReportIds.length > 0 && selectedReportIds.length < reports.length;
+	const hasActiveFilters = hasActiveAdminReportStatusesFilters(filters);
 
 	useEffect(() => {
 		if (!selectAllRef.current) {
@@ -135,6 +148,29 @@ export function ReportStatusesTable({
 					className="overflow-hidden rounded-2xl bg-linear-to-br from-muted/35 via-background to-background p-5 shadow-sm ring-1 ring-border/60"
 				>
 					<input type="hidden" name="page" value={currentPage} />
+					{filters.statusIds.map((statusId) => (
+						<input
+							key={statusId}
+							type="hidden"
+							name="returnStatusId"
+							value={statusId}
+						/>
+					))}
+					<input
+						type="hidden"
+						name="returnImageFilter"
+						value={filters.imageFilter}
+					/>
+					<input
+						type="hidden"
+						name="returnVerdictFilter"
+						value={filters.verdictFilter}
+					/>
+					<input
+						type="hidden"
+						name="returnLabelFilter"
+						value={filters.labelFilter}
+					/>
 					{selectedReportIds.map((reportId) => (
 						<input
 							key={reportId}
@@ -333,8 +369,116 @@ export function ReportStatusesTable({
 				</form>
 			) : null}
 
+			<form
+				action={ADMIN_REPORT_STATUSES_PATH}
+				method="get"
+				className="rounded-2xl border bg-linear-to-br from-background via-muted/15 to-background p-4 shadow-sm"
+			>
+				<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+					<div className="grid flex-1 gap-3 xl:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.8fr)_minmax(220px,0.8fr)_minmax(220px,0.8fr)]">
+						<div className="space-y-2">
+							<p className="text-xs font-medium text-muted-foreground">
+								審査状況
+							</p>
+							<div className="flex flex-wrap gap-2">
+								{reportStatusOptions.map((status) => {
+									const checked = filters.statusIds.includes(status.id);
+
+									return (
+										<label key={status.id} className="block cursor-pointer">
+											<input
+												type="checkbox"
+												name="statusId"
+												value={status.id}
+												defaultChecked={checked}
+												className="peer sr-only"
+											/>
+											<span className="inline-flex min-h-9 items-center rounded-full bg-background/80 px-3 py-2 text-sm text-foreground ring-1 ring-border/45 transition hover:bg-background peer-checked:bg-foreground peer-checked:text-background peer-checked:ring-foreground/20 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2">
+												{status.label}
+											</span>
+										</label>
+									);
+								})}
+							</div>
+						</div>
+						<div className="space-y-2">
+							<label
+								htmlFor="report-filter-verdict"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								判定結果
+							</label>
+							<NativeSelect
+								id="report-filter-verdict"
+								name="verdictFilter"
+								defaultValue={filters.verdictFilter}
+								className="w-full bg-background"
+							>
+								<NativeSelectOption value="all">すべて</NativeSelectOption>
+								<NativeSelectOption value="none">未設定</NativeSelectOption>
+								{reportVerdictOptions.map((verdict) => (
+									<NativeSelectOption key={verdict.value} value={verdict.value}>
+										{verdict.label}
+									</NativeSelectOption>
+								))}
+							</NativeSelect>
+						</div>
+						<div className="space-y-2">
+							<label
+								htmlFor="report-filter-image"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								証拠画像
+							</label>
+							<NativeSelect
+								id="report-filter-image"
+								name="imageFilter"
+								defaultValue={filters.imageFilter}
+								className="w-full bg-background"
+							>
+								<NativeSelectOption value="all">すべて</NativeSelectOption>
+								<NativeSelectOption value="with">あり</NativeSelectOption>
+								<NativeSelectOption value="without">なし</NativeSelectOption>
+							</NativeSelect>
+						</div>
+						<div className="space-y-2">
+							<label
+								htmlFor="report-filter-label"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								ラベル
+							</label>
+							<NativeSelect
+								id="report-filter-label"
+								name="labelFilter"
+								defaultValue={filters.labelFilter}
+								className="w-full bg-background"
+							>
+								<NativeSelectOption value="all">すべて</NativeSelectOption>
+								<NativeSelectOption value="with">あり</NativeSelectOption>
+								<NativeSelectOption value="without">なし</NativeSelectOption>
+							</NativeSelect>
+						</div>
+					</div>
+					<div className="flex flex-wrap items-center justify-end gap-2">
+						<Button type="submit" size="sm">
+							絞り込む
+						</Button>
+						{hasActiveFilters ? (
+							<Button asChild variant="ghost" size="sm">
+								<Link href={ADMIN_REPORT_STATUSES_PATH}>リセット</Link>
+							</Button>
+						) : null}
+					</div>
+				</div>
+			</form>
+
 			<div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-				<p>全 {totalReports} 件中</p>
+				<p>
+					{hasActiveFilters
+						? `条件一致 ${totalReports} 件`
+						: `全 ${totalReports} 件中`}
+				</p>
 				<p>
 					{totalReports === 0
 						? "0件"
@@ -351,7 +495,7 @@ export function ReportStatusesTable({
 						<PaginationItem>
 							{currentPage > 1 ? (
 								<PaginationLink
-									href={buildPageHref(currentPage - 1)}
+									href={buildPageHref(currentPage - 1, filters)}
 									size="default"
 								>
 									前へ
@@ -363,20 +507,23 @@ export function ReportStatusesTable({
 							)}
 						</PaginationItem>
 						<PaginationItem>
-							<PaginationLink href={buildPageHref(currentPage)} isActive>
+							<PaginationLink
+								href={buildPageHref(currentPage, filters)}
+								isActive
+							>
 								{currentPage}
 							</PaginationLink>
 						</PaginationItem>
 						{currentPage < totalPages ? (
 							<PaginationItem>
-								<PaginationLink href={buildPageHref(currentPage + 1)}>
+								<PaginationLink href={buildPageHref(currentPage + 1, filters)}>
 									{currentPage + 1}
 								</PaginationLink>
 							</PaginationItem>
 						) : null}
 						{currentPage + 1 < totalPages ? (
 							<PaginationItem>
-								<PaginationLink href={buildPageHref(totalPages)}>
+								<PaginationLink href={buildPageHref(totalPages, filters)}>
 									{totalPages}
 								</PaginationLink>
 							</PaginationItem>
@@ -384,7 +531,7 @@ export function ReportStatusesTable({
 						<PaginationItem>
 							{currentPage < totalPages ? (
 								<PaginationLink
-									href={buildPageHref(currentPage + 1)}
+									href={buildPageHref(currentPage + 1, filters)}
 									size="default"
 								>
 									次へ
@@ -430,7 +577,9 @@ export function ReportStatusesTable({
 									colSpan={5}
 									className="px-3 py-8 text-center text-muted-foreground"
 								>
-									通報はまだありません。
+									{hasActiveFilters
+										? "条件に一致する通報はありません。"
+										: "通報はまだありません。"}
 								</td>
 							</tr>
 						) : null}
@@ -530,6 +679,7 @@ export function ReportStatusesTable({
 											reportUrl={report.url}
 											existingImageCount={report.existingImageCount}
 											currentPage={currentPage}
+											filters={filters}
 											reportStatuses={reportStatusOptions}
 											selectedStatusId={selectedStatusId}
 											selectedStatusCode={report.statusCode}

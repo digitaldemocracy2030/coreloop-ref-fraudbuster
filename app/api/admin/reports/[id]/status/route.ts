@@ -1,11 +1,12 @@
 import { revalidatePath, revalidateTag } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import {
 	ADMIN_REPORT_STATUSES_PATH,
 	buildAdminReportStatusesUrl,
+	parseAdminReportStatusesFilters,
 	parseAdminReportStatusesPage,
 } from "@/lib/admin-report-statuses";
-import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import {
 	getReportStatusMeta,
@@ -22,11 +23,13 @@ import {
 function toAdminRedirect(
 	request: NextRequest,
 	page: number,
+	filters: ReturnType<typeof parseAdminReportStatusesFilters>,
 	messageType: "notice" | "error",
 	message: string,
 ): NextResponse {
 	const url = buildAdminReportStatusesUrl(request.url, {
 		page,
+		filters,
 		[messageType]: message,
 	});
 	return NextResponse.redirect(url, { status: 303 });
@@ -96,6 +99,14 @@ export async function POST(
 
 	const formData = await request.formData();
 	const currentPage = parseAdminReportStatusesPage(readText(formData, "page"));
+	const filters = parseAdminReportStatusesFilters({
+		statusId: formData
+			.getAll("returnStatusId")
+			.filter((value): value is string => typeof value === "string"),
+		verdictFilter: readText(formData, "returnVerdictFilter"),
+		imageFilter: readText(formData, "returnImageFilter"),
+		labelFilter: readText(formData, "returnLabelFilter"),
+	});
 
 	try {
 		const { id: reportId } = await ctx.params;
@@ -115,18 +126,26 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				"通報IDまたはステータスが不正です。",
 			);
 		}
 		if (labelsError) {
-			return toAdminRedirect(request, currentPage, "error", labelsError);
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				labelsError,
+			);
 		}
 		if (rawVerdict.length > 0) {
 			if (!isReportVerdictCode(rawVerdict)) {
 				return toAdminRedirect(
 					request,
 					currentPage,
+					filters,
 					"error",
 					"判定結果の値が不正です。",
 				);
@@ -186,6 +205,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				"対象の通報が見つかりません。",
 			);
@@ -194,6 +214,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				"対象のステータスが見つかりません。",
 			);
@@ -202,6 +223,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				"完了ステータスにする場合は判定結果を選択してください。",
 			);
@@ -211,6 +233,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				"選択されたラベルの一部が見つかりません。",
 			);
@@ -229,6 +252,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				`ラベルは最大${MAX_REPORT_LABEL_COUNT}個まで設定できます。`,
 			);
@@ -321,6 +345,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"notice",
 				"変更はありませんでした。",
 			);
@@ -335,6 +360,7 @@ export async function POST(
 		return toAdminRedirect(
 			request,
 			currentPage,
+			filters,
 			"notice",
 			"通報情報を更新しました。",
 		);
@@ -343,6 +369,7 @@ export async function POST(
 		return toAdminRedirect(
 			request,
 			currentPage,
+			filters,
 			"error",
 			"通報情報の更新に失敗しました。",
 		);

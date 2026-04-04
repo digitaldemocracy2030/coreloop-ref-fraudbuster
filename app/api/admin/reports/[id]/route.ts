@@ -1,27 +1,30 @@
 import { revalidatePath, revalidateTag } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import {
 	ADMIN_REPORT_STATUSES_PATH,
 	buildAdminReportStatusesUrl,
+	parseAdminReportStatusesFilters,
 	parseAdminReportStatusesPage,
 } from "@/lib/admin-report-statuses";
-import { getAdminSessionFromRequest } from "@/lib/admin-auth";
+import { prisma } from "@/lib/prisma";
 import {
 	cleanupStoredReportImages,
 	getReportImageStorageBucket,
 	getReportImageStoragePathFromUrl,
 	resolveSupabaseProjectOrigin,
 } from "@/lib/report-image-storage";
-import { prisma } from "@/lib/prisma";
 
 function toAdminRedirect(
 	request: NextRequest,
 	page: number,
+	filters: ReturnType<typeof parseAdminReportStatusesFilters>,
 	messageType: "notice" | "error",
 	message: string,
 ): NextResponse {
 	const url = buildAdminReportStatusesUrl(request.url, {
 		page,
+		filters,
 		[messageType]: message,
 	});
 	return NextResponse.redirect(url, { status: 303 });
@@ -37,6 +40,23 @@ export async function POST(
 			? String(formData.get("page"))
 			: null,
 	);
+	const filters = parseAdminReportStatusesFilters({
+		statusId: formData
+			.getAll("returnStatusId")
+			.filter((value): value is string => typeof value === "string"),
+		verdictFilter:
+			typeof formData.get("returnVerdictFilter") === "string"
+				? String(formData.get("returnVerdictFilter"))
+				: null,
+		imageFilter:
+			typeof formData.get("returnImageFilter") === "string"
+				? String(formData.get("returnImageFilter"))
+				: null,
+		labelFilter:
+			typeof formData.get("returnLabelFilter") === "string"
+				? String(formData.get("returnLabelFilter"))
+				: null,
+	});
 	const session = getAdminSessionFromRequest(request);
 	if (!session) {
 		const loginUrl = new URL("/admin/login", request.url);
@@ -50,6 +70,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				"通報IDが不正です。",
 			);
@@ -70,6 +91,7 @@ export async function POST(
 			return toAdminRedirect(
 				request,
 				currentPage,
+				filters,
 				"error",
 				"対象の通報が見つかりません。",
 			);
@@ -107,6 +129,7 @@ export async function POST(
 		return toAdminRedirect(
 			request,
 			currentPage,
+			filters,
 			"notice",
 			"通報を削除しました。",
 		);
@@ -115,6 +138,7 @@ export async function POST(
 		return toAdminRedirect(
 			request,
 			currentPage,
+			filters,
 			"error",
 			"通報の削除に失敗しました。",
 		);

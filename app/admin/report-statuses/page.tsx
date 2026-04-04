@@ -12,15 +12,27 @@ import {
 import { requireAdminSession } from "@/lib/admin-auth";
 import {
 	ADMIN_REPORT_STATUSES_PAGE_SIZE,
+	parseAdminReportStatusesFilters,
 	parseAdminReportStatusesPage,
 } from "@/lib/admin-report-statuses";
 import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
-import { compareReportStatusCodes } from "@/lib/report-metadata";
+import {
+	compareReportStatusCodes,
+	REPORT_VERDICT_CODES,
+} from "@/lib/report-metadata";
 
 interface AdminReportStatusesPageProps {
-	searchParams: Promise<{ notice?: string; error?: string; page?: string }>;
+	searchParams: Promise<{
+		notice?: string;
+		error?: string;
+		page?: string;
+		statusId?: string | string[];
+		verdictFilter?: string;
+		imageFilter?: string;
+		labelFilter?: string;
+	}>;
 }
 
 export default async function AdminReportStatusesPage({
@@ -32,6 +44,56 @@ export default async function AdminReportStatusesPage({
 	const notice = typeof params.notice === "string" ? params.notice : null;
 	const error = typeof params.error === "string" ? params.error : null;
 	const requestedPage = parseAdminReportStatusesPage(params.page);
+	const filters = parseAdminReportStatusesFilters({
+		statusId: params.statusId,
+		verdictFilter: params.verdictFilter,
+		imageFilter: params.imageFilter,
+		labelFilter: params.labelFilter,
+	});
+	const reportWhere = {
+		...(filters.statusIds.length > 0
+			? {
+					statusId: {
+						in: filters.statusIds,
+					},
+				}
+			: {}),
+		...(filters.verdictFilter === "none"
+			? {
+					verdict: null,
+				}
+			: filters.verdictFilter !== "all"
+				? {
+						verdict: filters.verdictFilter,
+					}
+				: {}),
+		...(filters.imageFilter === "with"
+			? {
+					images: {
+						some: {},
+					},
+				}
+			: filters.imageFilter === "without"
+				? {
+						images: {
+							none: {},
+						},
+					}
+				: {}),
+		...(filters.labelFilter === "with"
+			? {
+					reportLabels: {
+						some: {},
+					},
+				}
+			: filters.labelFilter === "without"
+				? {
+						reportLabels: {
+							none: {},
+						},
+					}
+				: {}),
+	};
 
 	const [reportStatuses, availableLabels, totalReports] = await Promise.all([
 		prisma.reportStatus.findMany({
@@ -48,7 +110,9 @@ export default async function AdminReportStatusesPage({
 				name: true,
 			},
 		}),
-		prisma.report.count(),
+		prisma.report.count({
+			where: reportWhere,
+		}),
 	]);
 	const totalPages = Math.max(
 		1,
@@ -56,6 +120,7 @@ export default async function AdminReportStatusesPage({
 	);
 	const currentPage = Math.min(requestedPage, totalPages);
 	const reports = await prisma.report.findMany({
+		where: reportWhere,
 		orderBy: { createdAt: "desc" },
 		skip: (currentPage - 1) * ADMIN_REPORT_STATUSES_PAGE_SIZE,
 		take: ADMIN_REPORT_STATUSES_PAGE_SIZE,
@@ -171,10 +236,29 @@ export default async function AdminReportStatusesPage({
 							</p>
 						) : null}
 						<ReportStatusesTable
-							key={`${currentPage}-${reportRows[0]?.id ?? "empty"}-${reportRows.length}`}
+							key={`${currentPage}-${filters.statusIds.join(",") || "all"}-${filters.verdictFilter}-${filters.imageFilter}-${filters.labelFilter}-${reportRows[0]?.id ?? "empty"}-${reportRows.length}`}
 							availableLabels={availableLabels}
 							currentPage={currentPage}
+							filters={filters}
 							reportStatusOptions={reportStatusOptions}
+							reportVerdictOptions={[
+								{
+									value: REPORT_VERDICT_CODES.CONFIRMED_FRAUD,
+									label: "詐欺判定",
+								},
+								{
+									value: REPORT_VERDICT_CODES.HIGH_RISK,
+									label: "高リスク",
+								},
+								{
+									value: REPORT_VERDICT_CODES.SAFE,
+									label: "安全",
+								},
+								{
+									value: REPORT_VERDICT_CODES.UNKNOWN,
+									label: "不明",
+								},
+							]}
 							reports={reportRows}
 							totalPages={totalPages}
 							totalReports={totalReports}
