@@ -79,6 +79,7 @@ model Report {
   categoryId                Int?             @map("category_id")
   statusId                  Int?             @map("status_id")
   verdict                   ReportVerdict?
+  recommendedVerdict        ReportVerdict?   @map("recommended_verdict")
   riskScore                 Int?             @default(0) @map("risk_score")
   viewCount                 Int?             @default(0) @map("view_count")
   reportCount               Int?             @default(1) @map("report_count")

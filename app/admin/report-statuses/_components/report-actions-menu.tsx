@@ -71,6 +71,7 @@ type ReportActionsMenuProps = {
 	selectedStatusId: number | string;
 	selectedStatusCode: string | null;
 	selectedVerdict: ReportVerdictCode | null;
+	recommendedVerdict: ReportVerdictCode | null;
 	selectedLabels: ReportLabelRecord[];
 };
 
@@ -135,6 +136,7 @@ export function ReportActionsMenu({
 	selectedStatusId,
 	selectedStatusCode,
 	selectedVerdict,
+	recommendedVerdict,
 	selectedLabels,
 }: ReportActionsMenuProps) {
 	const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
@@ -153,6 +155,7 @@ export function ReportActionsMenu({
 	);
 	const isCompleted = isCompletedReportStatus(selectedStatus?.code);
 	const verdictMeta = getReportVerdictMeta(selectedVerdict);
+	const recommendedVerdictMeta = getReportVerdictMeta(recommendedVerdict);
 	const statusMeta = getReportStatusMeta(selectedStatusCode);
 
 	const resetManageForm = useCallback(() => {
@@ -322,8 +325,21 @@ export function ReportActionsMenu({
 										{verdictMeta.label}
 									</span>
 								) : null}
+								{recommendedVerdictMeta ? (
+									<span
+										className={`rounded-full border px-2 py-0.5 text-xs font-medium ${recommendedVerdictMeta.badgeClassName}`}
+									>
+										{`推奨: ${recommendedVerdictMeta.label}`}
+									</span>
+								) : null}
 							</div>
 						</div>
+						{recommendedVerdictMeta ? (
+							<p className="text-xs text-muted-foreground">
+								ラベル条件に基づく推奨判定が保存されています。承認は一覧画面の
+								「推奨を承認」から実行できます。
+							</p>
+						) : null}
 
 						<form
 							action={`/api/admin/reports/${reportId}/status`}

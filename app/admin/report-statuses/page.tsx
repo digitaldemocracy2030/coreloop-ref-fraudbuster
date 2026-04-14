@@ -179,6 +179,7 @@ export default async function AdminReportStatusesPage({
 			createdAt: true,
 			statusId: true,
 			verdict: true,
+			recommendedVerdict: true,
 			reportLabels: {
 				select: {
 					label: {
@@ -249,6 +250,7 @@ export default async function AdminReportStatusesPage({
 			statusCode: report.status?.statusCode ?? null,
 			statusLabel: report.status?.label ?? null,
 			verdict: report.verdict,
+			recommendedVerdict: report.recommendedVerdict,
 			reportLabels: sortReportLabels(
 				report.reportLabels.map(({ label }) => ({
 					id: label.id,

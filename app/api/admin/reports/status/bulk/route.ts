@@ -18,6 +18,10 @@ import {
 	toUniqueStringArray,
 } from "@/lib/report-labels";
 import {
+	getFixedRiskScoreForVerdict,
+	getRecommendedVerdict,
+} from "@/lib/report-recommendation";
+import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
 	isCompletedReportStatus,
@@ -332,6 +336,8 @@ export async function POST(request: NextRequest) {
 					id: true,
 					statusId: true,
 					verdict: true,
+					recommendedVerdict: true,
+					riskScore: true,
 					reportLabels: {
 						select: {
 							label: {
@@ -451,12 +457,25 @@ export async function POST(request: NextRequest) {
 								.filter((label): label is ReportLabelRecord => Boolean(label)),
 						);
 						const nextLabelNames = flattenReportLabelNames(nextLabelRecords);
+						const nextStatusCode =
+							nextStatus?.statusCode ?? report.status?.statusCode ?? null;
 						const normalizedVerdict =
 							nextStatus && isCompletedReportStatus(nextStatus.statusCode)
 								? nextVerdict
 								: nextStatus
 									? null
 									: report.verdict;
+						const nextRecommendedVerdict = normalizedVerdict
+							? null
+							: getRecommendedVerdict({
+									statusCode: nextStatusCode,
+									labels: nextLabelRecords,
+								});
+						const nextRiskScore = normalizedVerdict
+							? getFixedRiskScoreForVerdict(normalizedVerdict)
+							: report.verdict
+								? 0
+								: (report.riskScore ?? 0);
 						const statusChanged =
 							(nextStatus !== null && report.statusId !== nextStatus.id) ||
 							report.verdict !== normalizedVerdict;
@@ -464,6 +483,9 @@ export async function POST(request: NextRequest) {
 							currentLabelNames,
 							nextLabelNames,
 						);
+						const recommendationChanged =
+							report.recommendedVerdict !== nextRecommendedVerdict;
+						const riskScoreChanged = report.riskScore !== nextRiskScore;
 
 						return {
 							report,
@@ -471,11 +493,21 @@ export async function POST(request: NextRequest) {
 							nextLabelRecords,
 							nextLabelNames,
 							normalizedVerdict,
+							nextRecommendedVerdict,
+							nextRiskScore,
 							statusChanged,
 							labelsChanged,
+							recommendationChanged,
+							riskScoreChanged,
 						};
 					})
-					.filter((entry) => entry.statusChanged || entry.labelsChanged);
+					.filter(
+						(entry) =>
+							entry.statusChanged ||
+							entry.labelsChanged ||
+							entry.recommendationChanged ||
+							entry.riskScoreChanged,
+					);
 
 				if (changedReports.length === 0) {
 					return { changedReportIds: [] as string[] };
@@ -518,47 +550,36 @@ export async function POST(request: NextRequest) {
 					};
 				});
 
-				if (updateLabels) {
-					for (const entry of changedReports) {
-						await tx.report.update({
-							where: { id: entry.report.id },
-							data: {
-								...(nextStatus
-									? {
-											statusId: nextStatus.id,
-											verdict: entry.normalizedVerdict,
-										}
-									: {}),
-								reportLabels: {
-									deleteMany: {},
-									create: entry.nextLabelRecords.map((label) => ({
-										label: {
-											connect: {
-												id: label.id,
-											},
-										},
-									})),
-								},
-								updatedAt,
-							},
-						});
-					}
-				} else if (nextStatus) {
-					const normalizedVerdict = isCompletedReportStatus(
-						nextStatus.statusCode,
-					)
-						? nextVerdict
-						: null;
-
-					await tx.report.updateMany({
+				for (const entry of changedReports) {
+					await tx.report.update({
 						where: {
-							id: {
-								in: changedReports.map((entry) => entry.report.id),
-							},
+							id: entry.report.id,
 						},
 						data: {
-							statusId: nextStatus.id,
-							verdict: normalizedVerdict,
+							...(nextStatus
+								? {
+										statusId: nextStatus.id,
+										verdict: entry.normalizedVerdict,
+									}
+								: {
+										verdict: entry.normalizedVerdict,
+									}),
+							recommendedVerdict: entry.nextRecommendedVerdict,
+							riskScore: entry.nextRiskScore,
+							...(updateLabels
+								? {
+										reportLabels: {
+											deleteMany: {},
+											create: entry.nextLabelRecords.map((label) => ({
+												label: {
+													connect: {
+														id: label.id,
+													},
+												},
+											})),
+										},
+									}
+								: {}),
 							updatedAt,
 						},
 					});

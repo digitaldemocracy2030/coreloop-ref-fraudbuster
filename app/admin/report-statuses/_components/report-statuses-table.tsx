@@ -41,6 +41,7 @@ import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
 	REPORT_LABEL_BADGE_CLASS_NAME,
+	REPORT_STATUS_CODES,
 	type ReportVerdictCode,
 } from "@/lib/report-metadata";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,7 @@ type ReportRow = {
 	statusCode: string | null;
 	statusLabel: string | null;
 	verdict: ReportVerdictCode | null;
+	recommendedVerdict: ReportVerdictCode | null;
 	reportLabels: ReportLabelRecord[];
 	imagePreviews: Array<{
 		id: string;
@@ -766,6 +768,9 @@ export function ReportStatusesTable({
 							const selectedStatusId = report.statusId ?? fallbackStatusId;
 							const statusMeta = getReportStatusMeta(report.statusCode);
 							const verdictMeta = getReportVerdictMeta(report.verdict);
+							const recommendedVerdictMeta = getReportVerdictMeta(
+								report.recommendedVerdict,
+							);
 							const displayTitle = report.title || "（タイトル未設定）";
 							const isSelected = selectedReportIds.includes(report.id);
 							const groupedLabels = groupReportLabels(
@@ -860,22 +865,53 @@ export function ReportStatusesTable({
 													{verdictMeta.label}
 												</Badge>
 											) : null}
+											{report.statusCode ===
+												REPORT_STATUS_CODES.INVESTIGATING &&
+											recommendedVerdictMeta ? (
+												<Badge
+													variant="outline"
+													className={recommendedVerdictMeta.badgeClassName}
+												>
+													{`推奨: ${recommendedVerdictMeta.label}`}
+												</Badge>
+											) : null}
 										</div>
 									</td>
 									<td className="px-3 py-3 align-top text-right">
-										<ReportActionsMenu
-											reportId={report.id}
-											reportTitle={report.title}
-											reportUrl={report.url}
-											existingImageCount={report.existingImageCount}
-											currentPage={currentPage}
-											filters={filters}
-											reportStatuses={reportStatusOptions}
-											selectedStatusId={selectedStatusId}
-											selectedStatusCode={report.statusCode}
-											selectedVerdict={report.verdict}
-											selectedLabels={report.reportLabels}
-										/>
+										<div className="flex items-start justify-end gap-2">
+											{report.statusCode ===
+												REPORT_STATUS_CODES.INVESTIGATING &&
+											report.recommendedVerdict ? (
+												<form
+													action={`/api/admin/reports/${report.id}/recommendation/approve`}
+													method="post"
+												>
+													<input
+														type="hidden"
+														name="page"
+														value={currentPage}
+													/>
+													<FilterReturnFields filters={filters} />
+													<Button type="submit" size="sm" variant="outline">
+														推奨を承認
+													</Button>
+												</form>
+											) : null}
+											<ReportActionsMenu
+												reportId={report.id}
+												reportTitle={report.title}
+												reportUrl={report.url}
+												existingImageCount={report.existingImageCount}
+												currentPage={currentPage}
+												filters={filters}
+												reportStatuses={reportStatusOptions}
+												selectedStatusId={selectedStatusId}
+												selectedStatusCode={report.statusCode}
+												selectedVerdict={report.verdict}
+												recommendedVerdict={report.recommendedVerdict}
+												selectedLabels={report.reportLabels}
+											/>
+										</div>
 									</td>
 								</tr>
 							);

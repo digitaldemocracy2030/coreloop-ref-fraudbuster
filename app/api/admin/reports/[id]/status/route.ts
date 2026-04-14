@@ -18,6 +18,10 @@ import {
 	toUniqueStringArray,
 } from "@/lib/report-labels";
 import {
+	getFixedRiskScoreForVerdict,
+	getRecommendedVerdict,
+} from "@/lib/report-recommendation";
+import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
 	isCompletedReportStatus,
@@ -249,6 +253,8 @@ export async function POST(
 					id: true,
 					statusId: true,
 					verdict: true,
+					recommendedVerdict: true,
+					riskScore: true,
 					reportLabels: {
 						select: {
 							label: {
@@ -342,10 +348,23 @@ export async function POST(
 			const normalizedVerdict = isCompletedReportStatus(nextStatus.statusCode)
 				? nextVerdict
 				: null;
+			const nextRecommendedVerdict = normalizedVerdict
+				? null
+				: getRecommendedVerdict({
+						statusCode: nextStatus.statusCode,
+						labels: nextLabelRecords,
+					});
+			const nextRiskScore = normalizedVerdict
+				? getFixedRiskScoreForVerdict(normalizedVerdict)
+				: report.verdict
+					? 0
+					: (report.riskScore ?? 0);
 
 			if (
 				report.statusId === nextStatus.id &&
 				report.verdict === normalizedVerdict &&
+				report.recommendedVerdict === nextRecommendedVerdict &&
+				report.riskScore === nextRiskScore &&
 				areStringArraysEqual(currentLabels, nextLabelNames)
 			) {
 				return { changed: false as const };
@@ -375,6 +394,8 @@ export async function POST(
 				data: {
 					statusId: nextStatus.id,
 					verdict: normalizedVerdict,
+					recommendedVerdict: nextRecommendedVerdict,
+					riskScore: nextRiskScore,
 					reportLabels: {
 						deleteMany: {},
 						create: nextLabelRecords.map((label) => ({

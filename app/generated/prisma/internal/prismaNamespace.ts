@@ -1791,6 +1791,7 @@ export const ReportScalarFieldEnum = {
 	categoryId: "categoryId",
 	statusId: "statusId",
 	verdict: "verdict",
+	recommendedVerdict: "recommendedVerdict",
 	riskScore: "riskScore",
 	viewCount: "viewCount",
 	reportCount: "reportCount",

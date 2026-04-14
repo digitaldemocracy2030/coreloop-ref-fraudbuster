@@ -54,6 +54,7 @@ export type ReportMinAggregateOutputType = {
 	categoryId: number | null;
 	statusId: number | null;
 	verdict: $Enums.ReportVerdict | null;
+	recommendedVerdict: $Enums.ReportVerdict | null;
 	riskScore: number | null;
 	viewCount: number | null;
 	reportCount: number | null;
@@ -73,6 +74,7 @@ export type ReportMaxAggregateOutputType = {
 	categoryId: number | null;
 	statusId: number | null;
 	verdict: $Enums.ReportVerdict | null;
+	recommendedVerdict: $Enums.ReportVerdict | null;
 	riskScore: number | null;
 	viewCount: number | null;
 	reportCount: number | null;
@@ -92,6 +94,7 @@ export type ReportCountAggregateOutputType = {
 	categoryId: number;
 	statusId: number;
 	verdict: number;
+	recommendedVerdict: number;
 	riskScore: number;
 	viewCount: number;
 	reportCount: number;
@@ -130,6 +133,7 @@ export type ReportMinAggregateInputType = {
 	categoryId?: true;
 	statusId?: true;
 	verdict?: true;
+	recommendedVerdict?: true;
 	riskScore?: true;
 	viewCount?: true;
 	reportCount?: true;
@@ -149,6 +153,7 @@ export type ReportMaxAggregateInputType = {
 	categoryId?: true;
 	statusId?: true;
 	verdict?: true;
+	recommendedVerdict?: true;
 	riskScore?: true;
 	viewCount?: true;
 	reportCount?: true;
@@ -168,6 +173,7 @@ export type ReportCountAggregateInputType = {
 	categoryId?: true;
 	statusId?: true;
 	verdict?: true;
+	recommendedVerdict?: true;
 	riskScore?: true;
 	viewCount?: true;
 	reportCount?: true;
@@ -281,6 +287,7 @@ export type ReportGroupByOutputType = {
 	categoryId: number | null;
 	statusId: number | null;
 	verdict: $Enums.ReportVerdict | null;
+	recommendedVerdict: $Enums.ReportVerdict | null;
 	riskScore: number | null;
 	viewCount: number | null;
 	reportCount: number | null;
@@ -324,6 +331,10 @@ export type ReportWhereInput = {
 		| Prisma.EnumReportVerdictNullableFilter<"Report">
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.EnumReportVerdictNullableFilter<"Report">
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.IntNullableFilter<"Report"> | number | null;
 	viewCount?: Prisma.IntNullableFilter<"Report"> | number | null;
 	reportCount?: Prisma.IntNullableFilter<"Report"> | number | null;
@@ -362,6 +373,7 @@ export type ReportOrderByWithRelationInput = {
 	categoryId?: Prisma.SortOrderInput | Prisma.SortOrder;
 	statusId?: Prisma.SortOrderInput | Prisma.SortOrder;
 	verdict?: Prisma.SortOrderInput | Prisma.SortOrder;
+	recommendedVerdict?: Prisma.SortOrderInput | Prisma.SortOrder;
 	riskScore?: Prisma.SortOrderInput | Prisma.SortOrder;
 	viewCount?: Prisma.SortOrderInput | Prisma.SortOrder;
 	reportCount?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -392,6 +404,10 @@ export type ReportWhereUniqueInput = Prisma.AtLeast<
 		categoryId?: Prisma.IntNullableFilter<"Report"> | number | null;
 		statusId?: Prisma.IntNullableFilter<"Report"> | number | null;
 		verdict?:
+			| Prisma.EnumReportVerdictNullableFilter<"Report">
+			| $Enums.ReportVerdict
+			| null;
+		recommendedVerdict?:
 			| Prisma.EnumReportVerdictNullableFilter<"Report">
 			| $Enums.ReportVerdict
 			| null;
@@ -435,6 +451,7 @@ export type ReportOrderByWithAggregationInput = {
 	categoryId?: Prisma.SortOrderInput | Prisma.SortOrder;
 	statusId?: Prisma.SortOrderInput | Prisma.SortOrder;
 	verdict?: Prisma.SortOrderInput | Prisma.SortOrder;
+	recommendedVerdict?: Prisma.SortOrderInput | Prisma.SortOrder;
 	riskScore?: Prisma.SortOrderInput | Prisma.SortOrder;
 	viewCount?: Prisma.SortOrderInput | Prisma.SortOrder;
 	reportCount?: Prisma.SortOrderInput | Prisma.SortOrder;
@@ -472,6 +489,10 @@ export type ReportScalarWhereWithAggregatesInput = {
 		| Prisma.EnumReportVerdictNullableWithAggregatesFilter<"Report">
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.EnumReportVerdictNullableWithAggregatesFilter<"Report">
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.IntNullableWithAggregatesFilter<"Report"> | number | null;
 	viewCount?: Prisma.IntNullableWithAggregatesFilter<"Report"> | number | null;
 	reportCount?:
@@ -504,6 +525,7 @@ export type ReportCreateInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -530,6 +552,7 @@ export type ReportUncheckedCreateInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -548,6 +571,10 @@ export type ReportUpdateInput = {
 	title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -591,6 +618,10 @@ export type ReportUncheckedUpdateInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -624,6 +655,7 @@ export type ReportCreateManyInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -639,6 +671,10 @@ export type ReportUpdateManyMutationInput = {
 	title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -672,6 +708,10 @@ export type ReportUncheckedUpdateManyInput = {
 	categoryId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	statusId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -715,6 +755,7 @@ export type ReportCountOrderByAggregateInput = {
 	categoryId?: Prisma.SortOrder;
 	statusId?: Prisma.SortOrder;
 	verdict?: Prisma.SortOrder;
+	recommendedVerdict?: Prisma.SortOrder;
 	riskScore?: Prisma.SortOrder;
 	viewCount?: Prisma.SortOrder;
 	reportCount?: Prisma.SortOrder;
@@ -743,6 +784,7 @@ export type ReportMaxOrderByAggregateInput = {
 	categoryId?: Prisma.SortOrder;
 	statusId?: Prisma.SortOrder;
 	verdict?: Prisma.SortOrder;
+	recommendedVerdict?: Prisma.SortOrder;
 	riskScore?: Prisma.SortOrder;
 	viewCount?: Prisma.SortOrder;
 	reportCount?: Prisma.SortOrder;
@@ -762,6 +804,7 @@ export type ReportMinOrderByAggregateInput = {
 	categoryId?: Prisma.SortOrder;
 	statusId?: Prisma.SortOrder;
 	verdict?: Prisma.SortOrder;
+	recommendedVerdict?: Prisma.SortOrder;
 	riskScore?: Prisma.SortOrder;
 	viewCount?: Prisma.SortOrder;
 	reportCount?: Prisma.SortOrder;
@@ -1221,6 +1264,7 @@ export type ReportCreateWithoutCategoryInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1245,6 +1289,7 @@ export type ReportUncheckedCreateWithoutCategoryInput = {
 	platformId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1316,6 +1361,10 @@ export type ReportScalarWhereInput = {
 		| Prisma.EnumReportVerdictNullableFilter<"Report">
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.EnumReportVerdictNullableFilter<"Report">
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.IntNullableFilter<"Report"> | number | null;
 	viewCount?: Prisma.IntNullableFilter<"Report"> | number | null;
 	reportCount?: Prisma.IntNullableFilter<"Report"> | number | null;
@@ -1331,6 +1380,7 @@ export type ReportCreateWithoutPlatformInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1355,6 +1405,7 @@ export type ReportUncheckedCreateWithoutPlatformInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1416,6 +1467,7 @@ export type ReportCreateWithoutStatusInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1440,6 +1492,7 @@ export type ReportUncheckedCreateWithoutStatusInput = {
 	platformId?: number | null;
 	categoryId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1501,6 +1554,7 @@ export type ReportCreateWithoutUserInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1525,6 +1579,7 @@ export type ReportUncheckedCreateWithoutUserInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1584,6 +1639,7 @@ export type ReportCreateWithoutImagesInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1609,6 +1665,7 @@ export type ReportUncheckedCreateWithoutImagesInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1657,6 +1714,10 @@ export type ReportUpdateWithoutImagesInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -1696,6 +1757,10 @@ export type ReportUncheckedUpdateWithoutImagesInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -1724,6 +1789,7 @@ export type ReportCreateWithoutTimelinesInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1749,6 +1815,7 @@ export type ReportUncheckedCreateWithoutTimelinesInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1797,6 +1864,10 @@ export type ReportUpdateWithoutTimelinesInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -1836,6 +1907,10 @@ export type ReportUncheckedUpdateWithoutTimelinesInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -1864,6 +1939,7 @@ export type ReportCreateWithoutReportLabelsInput = {
 	title?: string | null;
 	description?: string | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1889,6 +1965,7 @@ export type ReportUncheckedCreateWithoutReportLabelsInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -1937,6 +2014,10 @@ export type ReportUpdateWithoutReportLabelsInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -1976,6 +2057,10 @@ export type ReportUncheckedUpdateWithoutReportLabelsInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2007,6 +2092,7 @@ export type ReportCreateManyCategoryInput = {
 	platformId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -2022,6 +2108,10 @@ export type ReportUpdateWithoutCategoryInput = {
 	title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -2063,6 +2153,10 @@ export type ReportUncheckedUpdateWithoutCategoryInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2098,6 +2192,10 @@ export type ReportUncheckedUpdateManyWithoutCategoryInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2127,6 +2225,7 @@ export type ReportCreateManyPlatformInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -2142,6 +2241,10 @@ export type ReportUpdateWithoutPlatformInput = {
 	title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -2183,6 +2286,10 @@ export type ReportUncheckedUpdateWithoutPlatformInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2218,6 +2325,10 @@ export type ReportUncheckedUpdateManyWithoutPlatformInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2247,6 +2358,7 @@ export type ReportCreateManyStatusInput = {
 	platformId?: number | null;
 	categoryId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -2262,6 +2374,10 @@ export type ReportUpdateWithoutStatusInput = {
 	title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -2303,6 +2419,10 @@ export type ReportUncheckedUpdateWithoutStatusInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2338,6 +2458,10 @@ export type ReportUncheckedUpdateManyWithoutStatusInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2367,6 +2491,7 @@ export type ReportCreateManyUserInput = {
 	categoryId?: number | null;
 	statusId?: number | null;
 	verdict?: $Enums.ReportVerdict | null;
+	recommendedVerdict?: $Enums.ReportVerdict | null;
 	riskScore?: number | null;
 	viewCount?: number | null;
 	reportCount?: number | null;
@@ -2382,6 +2507,10 @@ export type ReportUpdateWithoutUserInput = {
 	title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -2423,6 +2552,10 @@ export type ReportUncheckedUpdateWithoutUserInput = {
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
+	recommendedVerdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
 	riskScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	viewCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	reportCount?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
@@ -2455,6 +2588,10 @@ export type ReportUncheckedUpdateManyWithoutUserInput = {
 	categoryId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	statusId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null;
 	verdict?:
+		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
+		| $Enums.ReportVerdict
+		| null;
+	recommendedVerdict?:
 		| Prisma.NullableEnumReportVerdictFieldUpdateOperationsInput
 		| $Enums.ReportVerdict
 		| null;
@@ -2554,6 +2691,7 @@ export type ReportSelect<
 		categoryId?: boolean;
 		statusId?: boolean;
 		verdict?: boolean;
+		recommendedVerdict?: boolean;
 		riskScore?: boolean;
 		viewCount?: boolean;
 		reportCount?: boolean;
@@ -2587,6 +2725,7 @@ export type ReportSelectCreateManyAndReturn<
 		categoryId?: boolean;
 		statusId?: boolean;
 		verdict?: boolean;
+		recommendedVerdict?: boolean;
 		riskScore?: boolean;
 		viewCount?: boolean;
 		reportCount?: boolean;
@@ -2616,6 +2755,7 @@ export type ReportSelectUpdateManyAndReturn<
 		categoryId?: boolean;
 		statusId?: boolean;
 		verdict?: boolean;
+		recommendedVerdict?: boolean;
 		riskScore?: boolean;
 		viewCount?: boolean;
 		reportCount?: boolean;
@@ -2641,6 +2781,7 @@ export type ReportSelectScalar = {
 	categoryId?: boolean;
 	statusId?: boolean;
 	verdict?: boolean;
+	recommendedVerdict?: boolean;
 	riskScore?: boolean;
 	viewCount?: boolean;
 	reportCount?: boolean;
@@ -2663,6 +2804,7 @@ export type ReportOmit<
 	| "categoryId"
 	| "statusId"
 	| "verdict"
+	| "recommendedVerdict"
 	| "riskScore"
 	| "viewCount"
 	| "reportCount"
@@ -2729,6 +2871,7 @@ export type $ReportPayload<
 			categoryId: number | null;
 			statusId: number | null;
 			verdict: $Enums.ReportVerdict | null;
+			recommendedVerdict: $Enums.ReportVerdict | null;
 			riskScore: number | null;
 			viewCount: number | null;
 			reportCount: number | null;
@@ -3422,6 +3565,7 @@ export interface ReportFieldRefs {
 	readonly categoryId: Prisma.FieldRef<"Report", "Int">;
 	readonly statusId: Prisma.FieldRef<"Report", "Int">;
 	readonly verdict: Prisma.FieldRef<"Report", "ReportVerdict">;
+	readonly recommendedVerdict: Prisma.FieldRef<"Report", "ReportVerdict">;
 	readonly riskScore: Prisma.FieldRef<"Report", "Int">;
 	readonly viewCount: Prisma.FieldRef<"Report", "Int">;
 	readonly reportCount: Prisma.FieldRef<"Report", "Int">;
