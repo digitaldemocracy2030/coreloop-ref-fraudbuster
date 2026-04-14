@@ -38,8 +38,13 @@ import {
 	NativeSelect,
 	NativeSelectOption,
 } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
 import type { AdminReportStatusesFilters } from "@/lib/admin-report-statuses";
+import {
+	getReportLabelCodesByGroup,
+	getReportLabelDefinitions,
+	REPORT_LABEL_GROUP_CODES,
+	type ReportLabelRecord,
+} from "@/lib/report-labels";
 import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
@@ -66,15 +71,58 @@ type ReportActionsMenuProps = {
 	selectedStatusId: number | string;
 	selectedStatusCode: string | null;
 	selectedVerdict: ReportVerdictCode | null;
-	availableLabels: Array<{
-		id: number;
-		name: string;
-	}>;
-	selectedLabels: Array<{
-		id: number;
-		name: string;
-	}>;
+	selectedLabels: ReportLabelRecord[];
 };
+
+type SelectedLabelState = ReturnType<typeof getReportLabelCodesByGroup>;
+
+function FilterReturnFields({
+	filters,
+}: {
+	filters: AdminReportStatusesFilters;
+}) {
+	return (
+		<>
+			{filters.statusIds.map((statusId) => (
+				<input
+					key={statusId}
+					type="hidden"
+					name="returnStatusId"
+					value={statusId}
+				/>
+			))}
+			<input
+				type="hidden"
+				name="returnImageFilter"
+				value={filters.imageFilter}
+			/>
+			<input
+				type="hidden"
+				name="returnVerdictFilter"
+				value={filters.verdictFilter}
+			/>
+			{filters.genreCodes.map((genreCode) => (
+				<input
+					key={genreCode}
+					type="hidden"
+					name="returnGenre"
+					value={genreCode}
+				/>
+			))}
+			<input
+				type="hidden"
+				name="returnImpersonation"
+				value={filters.impersonationCode}
+			/>
+			<input type="hidden" name="returnMedia" value={filters.mediaCode} />
+			<input
+				type="hidden"
+				name="returnExpression"
+				value={filters.expressionCode}
+			/>
+		</>
+	);
+}
 
 export function ReportActionsMenu({
 	reportId,
@@ -87,7 +135,6 @@ export function ReportActionsMenu({
 	selectedStatusId,
 	selectedStatusCode,
 	selectedVerdict,
-	availableLabels,
 	selectedLabels,
 }: ReportActionsMenuProps) {
 	const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
@@ -98,10 +145,9 @@ export function ReportActionsMenu({
 	const displayTitle = reportTitle || reportUrl;
 	const [statusValue, setStatusValue] = useState(String(selectedStatusId));
 	const [verdictValue, setVerdictValue] = useState(selectedVerdict ?? "");
-	const [selectedLabelIds, setSelectedLabelIds] = useState<number[]>(
-		selectedLabels.map((label) => label.id),
+	const [labelState, setLabelState] = useState<SelectedLabelState>(() =>
+		getReportLabelCodesByGroup(selectedLabels),
 	);
-	const [newLabelsValue, setNewLabelsValue] = useState("");
 	const selectedStatus = reportStatuses.find(
 		(status) => String(status.id) === statusValue,
 	);
@@ -112,19 +158,21 @@ export function ReportActionsMenu({
 	const resetManageForm = useCallback(() => {
 		setStatusValue(String(selectedStatusId));
 		setVerdictValue(selectedVerdict ?? "");
-		setSelectedLabelIds(selectedLabels.map((label) => label.id));
-		setNewLabelsValue("");
+		setLabelState(getReportLabelCodesByGroup(selectedLabels));
 		setIsUpdatingStatus(false);
 	}, [selectedLabels, selectedStatusId, selectedVerdict]);
 
-	function toggleLabel(labelId: number, checked: boolean) {
-		setSelectedLabelIds((current) => {
-			if (checked) {
-				return current.includes(labelId) ? current : [...current, labelId];
-			}
-
-			return current.filter((id) => id !== labelId);
-		});
+	function toggleGenre(code: string, checked: boolean) {
+		setLabelState((current) => ({
+			...current,
+			genreCodes: checked
+				? current.genreCodes.includes(
+						code as (typeof current.genreCodes)[number],
+					)
+					? current.genreCodes
+					: [...current.genreCodes, code as (typeof current.genreCodes)[number]]
+				: current.genreCodes.filter((value) => value !== code),
+		}));
 	}
 
 	return (
@@ -203,29 +251,7 @@ export function ReportActionsMenu({
 						method="post"
 					>
 						<input type="hidden" name="page" value={currentPage} />
-						{filters.statusIds.map((statusId) => (
-							<input
-								key={statusId}
-								type="hidden"
-								name="returnStatusId"
-								value={statusId}
-							/>
-						))}
-						<input
-							type="hidden"
-							name="returnImageFilter"
-							value={filters.imageFilter}
-						/>
-						<input
-							type="hidden"
-							name="returnVerdictFilter"
-							value={filters.verdictFilter}
-						/>
-						<input
-							type="hidden"
-							name="returnLabelFilter"
-							value={filters.labelFilter}
-						/>
+						<FilterReturnFields filters={filters} />
 					</form>
 					<AlertDialogFooter>
 						<AlertDialogCancel>キャンセル</AlertDialogCancel>
@@ -256,7 +282,7 @@ export function ReportActionsMenu({
 					<DialogHeader>
 						<DialogTitle>通報内容を更新</DialogTitle>
 						<DialogDescription>
-							ラベル、ステータス、判定結果を更新できます。
+							4階層ラベル、ステータス、判定結果を更新できます。
 						</DialogDescription>
 					</DialogHeader>
 
@@ -306,37 +332,30 @@ export function ReportActionsMenu({
 							onSubmit={() => setIsUpdatingStatus(true)}
 						>
 							<input type="hidden" name="page" value={currentPage} />
-							{filters.statusIds.map((statusId) => (
+							<FilterReturnFields filters={filters} />
+							{labelState.genreCodes.map((code) => (
 								<input
-									key={statusId}
+									key={code}
 									type="hidden"
-									name="returnStatusId"
-									value={statusId}
+									name="genreCodes"
+									value={code}
 								/>
 							))}
 							<input
 								type="hidden"
-								name="returnImageFilter"
-								value={filters.imageFilter}
+								name="impersonationCode"
+								value={labelState.impersonationCode ?? ""}
 							/>
 							<input
 								type="hidden"
-								name="returnVerdictFilter"
-								value={filters.verdictFilter}
+								name="mediaCode"
+								value={labelState.mediaCode ?? ""}
 							/>
 							<input
 								type="hidden"
-								name="returnLabelFilter"
-								value={filters.labelFilter}
+								name="expressionCode"
+								value={labelState.expressionCode ?? ""}
 							/>
-							{selectedLabelIds.map((labelId) => (
-								<input
-									key={labelId}
-									type="hidden"
-									name="selectedLabelIds"
-									value={labelId}
-								/>
-							))}
 							<div className="grid gap-4 md:grid-cols-2">
 								<div className="space-y-2">
 									<label
@@ -379,22 +398,20 @@ export function ReportActionsMenu({
 											<NativeSelectOption value="">
 												判定結果を選択してください
 											</NativeSelectOption>
-											<NativeSelectOption
-												value={REPORT_VERDICT_CODES.CONFIRMED_FRAUD}
-											>
-												詐欺判定
-											</NativeSelectOption>
-											<NativeSelectOption
-												value={REPORT_VERDICT_CODES.HIGH_RISK}
-											>
-												高リスク
-											</NativeSelectOption>
-											<NativeSelectOption value={REPORT_VERDICT_CODES.SAFE}>
-												安全
-											</NativeSelectOption>
-											<NativeSelectOption value={REPORT_VERDICT_CODES.UNKNOWN}>
-												不明
-											</NativeSelectOption>
+											{[
+												REPORT_VERDICT_CODES.CONFIRMED_FRAUD,
+												REPORT_VERDICT_CODES.HIGH_RISK,
+												REPORT_VERDICT_CODES.SAFE,
+												REPORT_VERDICT_CODES.UNKNOWN,
+											].map((verdictCode) => (
+												<NativeSelectOption
+													key={verdictCode}
+													value={verdictCode}
+												>
+													{getReportVerdictMeta(verdictCode)?.label ??
+														verdictCode}
+												</NativeSelectOption>
+											))}
 										</NativeSelect>
 									) : (
 										<>
@@ -410,57 +427,105 @@ export function ReportActionsMenu({
 								</div>
 							</div>
 
-							<div className="space-y-2">
-								<p className="text-sm font-medium">ラベル</p>
-								<div className="rounded-lg border p-3">
-									{availableLabels.length > 0 ? (
-										<div className="grid gap-2 sm:grid-cols-2">
-											{availableLabels.map((label) => {
-												const checked = selectedLabelIds.includes(label.id);
-												return (
-													<label
-														key={label.id}
-														className="flex items-center gap-2 text-sm"
-													>
-														<input
-															type="checkbox"
-															checked={checked}
-															onChange={(event) =>
-																toggleLabel(label.id, event.target.checked)
-															}
-															className="h-4 w-4 rounded border-input"
-														/>
-														<span>{label.name}</span>
-													</label>
-												);
-											})}
-										</div>
-									) : (
-										<p className="text-sm text-muted-foreground">
-											選択できるラベルがまだありません。
-										</p>
-									)}
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<p className="text-sm font-medium">ジャンル</p>
+									<div className="grid gap-2 sm:grid-cols-2">
+										{getReportLabelDefinitions(
+											REPORT_LABEL_GROUP_CODES.GENRE,
+										).map((definition) => {
+											const checked = labelState.genreCodes.includes(
+												definition.code,
+											);
+											return (
+												<label
+													key={definition.code}
+													className="flex items-center gap-2 text-sm"
+												>
+													<input
+														type="checkbox"
+														checked={checked}
+														onChange={(event) =>
+															toggleGenre(definition.code, event.target.checked)
+														}
+														className="h-4 w-4 rounded border-input"
+													/>
+													<span>{definition.name}</span>
+												</label>
+											);
+										})}
+									</div>
 								</div>
-							</div>
 
-							<div className="space-y-2">
-								<label
-									className="text-sm font-medium"
-									htmlFor={`new-labels-${reportId}`}
-								>
-									新規ラベル追加
-								</label>
-								<Textarea
-									id={`new-labels-${reportId}`}
-									name="newLabels"
-									value={newLabelsValue}
-									onChange={(event) => setNewLabelsValue(event.target.value)}
-									placeholder="例: 返金誘導, SNS広告"
-									className="min-h-24"
-								/>
-								<p className="text-xs text-muted-foreground">
-									既存ラベルは上から複数選択できます。新しいラベルはカンマまたは改行区切りで追加できます。
-								</p>
+								<div className="grid gap-4 md:grid-cols-3">
+									{[
+										{
+											id: `impersonation-${reportId}`,
+											groupCode: REPORT_LABEL_GROUP_CODES.IMPERSONATION,
+											label: "なりすまし",
+											value: labelState.impersonationCode ?? "",
+											onChange: (value: string) =>
+												setLabelState((current) => ({
+													...current,
+													impersonationCode:
+														(value as SelectedLabelState["impersonationCode"]) ||
+														null,
+												})),
+										},
+										{
+											id: `media-${reportId}`,
+											groupCode: REPORT_LABEL_GROUP_CODES.MEDIA_SPOOF,
+											label: "他メディアを騙っている",
+											value: labelState.mediaCode ?? "",
+											onChange: (value: string) =>
+												setLabelState((current) => ({
+													...current,
+													mediaCode:
+														(value as SelectedLabelState["mediaCode"]) || null,
+												})),
+										},
+										{
+											id: `expression-${reportId}`,
+											groupCode: REPORT_LABEL_GROUP_CODES.EXPRESSION,
+											label: "表現",
+											value: labelState.expressionCode ?? "",
+											onChange: (value: string) =>
+												setLabelState((current) => ({
+													...current,
+													expressionCode:
+														(value as SelectedLabelState["expressionCode"]) ||
+														null,
+												})),
+										},
+									].map((item) => (
+										<div key={item.id} className="space-y-2">
+											<label className="text-sm font-medium" htmlFor={item.id}>
+												{item.label}
+											</label>
+											<NativeSelect
+												id={item.id}
+												value={item.value}
+												onChange={(event) => item.onChange(event.target.value)}
+												className="w-full"
+												required
+											>
+												<NativeSelectOption value="">
+													選択してください
+												</NativeSelectOption>
+												{getReportLabelDefinitions(item.groupCode).map(
+													(definition) => (
+														<NativeSelectOption
+															key={definition.code}
+															value={definition.code}
+														>
+															{definition.name}
+														</NativeSelectOption>
+													),
+												)}
+											</NativeSelect>
+										</div>
+									))}
+								</div>
 							</div>
 
 							<div className="flex justify-end gap-2">

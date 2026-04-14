@@ -9,15 +9,20 @@ import {
 } from "@/lib/admin-report-statuses";
 import { prisma } from "@/lib/prisma";
 import {
+	areReportLabelCodesInGroup,
+	flattenReportLabelNames,
+	mergeBulkReportLabelCodes,
+	REPORT_LABEL_GROUP_CODES,
+	type ReportLabelRecord,
+	sortReportLabels,
+	toUniqueStringArray,
+} from "@/lib/report-labels";
+import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
 	isCompletedReportStatus,
 	isReportVerdictCode,
-	MAX_REPORT_LABEL_COUNT,
-	normalizeReportLabel,
-	parseReportLabels,
 	type ReportVerdictCode,
-	validateReportLabels,
 } from "@/lib/report-metadata";
 
 function toAdminRedirect(
@@ -38,6 +43,14 @@ function toAdminRedirect(
 function readText(formData: FormData, fieldName: string): string {
 	const value = formData.get(fieldName);
 	return typeof value === "string" ? value.trim() : "";
+}
+
+function readMultiValues(formData: FormData, fieldName: string) {
+	return toUniqueStringArray(
+		formData
+			.getAll(fieldName)
+			.filter((value): value is string => typeof value === "string"),
+	);
 }
 
 function getUniqueReportIds(formData: FormData) {
@@ -117,6 +130,22 @@ function buildActionLabel(params: {
 	return "ラベル一括更新";
 }
 
+function toReportLabelRecord(label: {
+	id: number;
+	code: string;
+	name: string;
+	groupCode: string;
+	displayOrder: number;
+}): ReportLabelRecord {
+	return {
+		id: label.id,
+		code: label.code,
+		name: label.name,
+		groupCode: label.groupCode,
+		displayOrder: label.displayOrder,
+	};
+}
+
 export async function POST(request: NextRequest) {
 	const session = getAdminSessionFromRequest(request);
 	if (!session) {
@@ -133,7 +162,12 @@ export async function POST(request: NextRequest) {
 			.filter((value): value is string => typeof value === "string"),
 		verdictFilter: readText(formData, "returnVerdictFilter"),
 		imageFilter: readText(formData, "returnImageFilter"),
-		labelFilter: readText(formData, "returnLabelFilter"),
+		genre: formData
+			.getAll("returnGenre")
+			.filter((value): value is string => typeof value === "string"),
+		impersonation: readText(formData, "returnImpersonation"),
+		media: readText(formData, "returnMedia"),
+		expression: readText(formData, "returnExpression"),
 	});
 
 	try {
@@ -142,22 +176,18 @@ export async function POST(request: NextRequest) {
 		const statusId =
 			rawStatusId.length > 0 ? Number.parseInt(rawStatusId, 10) : null;
 		const rawVerdict = readText(formData, "verdict");
-		const forceLabelUpdate = formData.get("updateLabels") === "1";
-		const clearLabels = formData.get("clearLabels") === "1";
-		let nextVerdict: ReportVerdictCode | null = null;
-		const selectedLabelIds = formData
-			.getAll("selectedLabelIds")
-			.map((value) =>
-				typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN,
-			)
-			.filter((value) => Number.isInteger(value) && value > 0);
-		const parsedNewLabels = parseReportLabels(readText(formData, "newLabels"));
-		const labelsError = validateReportLabels(parsedNewLabels);
+		const updateGenres = formData.get("updateGenres") === "1";
+		const clearGenres = formData.get("clearGenres") === "1";
+		const updateImpersonation = formData.get("updateImpersonation") === "1";
+		const updateMedia = formData.get("updateMedia") === "1";
+		const updateExpression = formData.get("updateExpression") === "1";
+		const genreCodes = readMultiValues(formData, "genreCodes");
+		const impersonationCode = readText(formData, "impersonationCode");
+		const mediaCode = readText(formData, "mediaCode");
+		const expressionCode = readText(formData, "expressionCode");
 		const updateLabels =
-			forceLabelUpdate ||
-			clearLabels ||
-			selectedLabelIds.length > 0 ||
-			parsedNewLabels.length > 0;
+			updateGenres || updateImpersonation || updateMedia || updateExpression;
+		let nextVerdict: ReportVerdictCode | null = null;
 
 		if (reportIds.length === 0) {
 			return toAdminRedirect(
@@ -189,13 +219,72 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		if (labelsError) {
+		if (
+			!areReportLabelCodesInGroup(genreCodes, REPORT_LABEL_GROUP_CODES.GENRE)
+		) {
 			return toAdminRedirect(
 				request,
 				currentPage,
 				filters,
 				"error",
-				labelsError,
+				"ジャンルの値が不正です。",
+			);
+		}
+		if (updateGenres && !clearGenres && genreCodes.length === 0) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"ジャンルを更新する場合は選択するか、空にするを指定してください。",
+			);
+		}
+		if (
+			updateImpersonation &&
+			(!impersonationCode ||
+				!areReportLabelCodesInGroup(
+					[impersonationCode],
+					REPORT_LABEL_GROUP_CODES.IMPERSONATION,
+				))
+		) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"なりすましを更新する場合は1件選択してください。",
+			);
+		}
+		if (
+			updateMedia &&
+			(!mediaCode ||
+				!areReportLabelCodesInGroup(
+					[mediaCode],
+					REPORT_LABEL_GROUP_CODES.MEDIA_SPOOF,
+				))
+		) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"他メディアを更新する場合は1件選択してください。",
+			);
+		}
+		if (
+			updateExpression &&
+			(!expressionCode ||
+				!areReportLabelCodesInGroup(
+					[expressionCode],
+					REPORT_LABEL_GROUP_CODES.EXPRESSION,
+				))
+		) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"表現を更新する場合は1件選択してください。",
 			);
 		}
 
@@ -222,65 +311,62 @@ export async function POST(request: NextRequest) {
 			nextVerdict = rawVerdict;
 		}
 
-		const [nextStatus, admin, reports, existingSelectedLabels] =
-			await Promise.all([
-				statusId !== null
-					? prisma.reportStatus.findUnique({
-							where: { id: statusId },
-							select: { id: true, label: true, statusCode: true },
-						})
-					: Promise.resolve(null),
-				prisma.admin.findUnique({
-					where: { email: session.email },
-					select: { id: true },
-				}),
-				prisma.report.findMany({
-					where: {
-						id: {
-							in: reportIds,
+		const [nextStatus, admin, reports, labelMaster] = await Promise.all([
+			statusId !== null
+				? prisma.reportStatus.findUnique({
+						where: { id: statusId },
+						select: { id: true, label: true, statusCode: true },
+					})
+				: Promise.resolve(null),
+			prisma.admin.findUnique({
+				where: { email: session.email },
+				select: { id: true },
+			}),
+			prisma.report.findMany({
+				where: {
+					id: {
+						in: reportIds,
+					},
+				},
+				select: {
+					id: true,
+					statusId: true,
+					verdict: true,
+					reportLabels: {
+						select: {
+							label: {
+								select: {
+									id: true,
+									code: true,
+									name: true,
+									groupCode: true,
+									displayOrder: true,
+								},
+							},
+						},
+						orderBy: [
+							{ label: { displayOrder: "asc" } },
+							{ label: { name: "asc" } },
+						],
+					},
+					status: {
+						select: {
+							label: true,
+							statusCode: true,
 						},
 					},
-					select: {
-						id: true,
-						statusId: true,
-						verdict: true,
-						reportLabels: {
-							select: {
-								label: {
-									select: {
-										id: true,
-										name: true,
-									},
-								},
-							},
-							orderBy: {
-								label: {
-									name: "asc",
-								},
-							},
-						},
-						status: {
-							select: {
-								label: true,
-								statusCode: true,
-							},
-						},
-					},
-				}),
-				updateLabels && selectedLabelIds.length > 0
-					? prisma.reportLabel.findMany({
-							where: {
-								id: {
-									in: selectedLabelIds,
-								},
-							},
-							select: {
-								id: true,
-								name: true,
-							},
-						})
-					: Promise.resolve([]),
-			]);
+				},
+			}),
+			prisma.reportLabel.findMany({
+				select: {
+					id: true,
+					code: true,
+					name: true,
+					groupCode: true,
+					displayOrder: true,
+				},
+			}),
+		]);
 
 		if (statusId !== null && !nextStatus) {
 			return toAdminRedirect(
@@ -306,39 +392,6 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		if (
-			updateLabels &&
-			existingSelectedLabels.length !== selectedLabelIds.length
-		) {
-			return toAdminRedirect(
-				request,
-				currentPage,
-				filters,
-				"error",
-				"選択されたラベルの一部が見つかりません。",
-			);
-		}
-
-		const selectedLabelNameSet = new Set(
-			existingSelectedLabels.map((label) => normalizeReportLabel(label.name)),
-		);
-		const trulyNewLabels = parsedNewLabels.filter(
-			(label) => !selectedLabelNameSet.has(label),
-		);
-		if (
-			updateLabels &&
-			existingSelectedLabels.length + trulyNewLabels.length >
-				MAX_REPORT_LABEL_COUNT
-		) {
-			return toAdminRedirect(
-				request,
-				currentPage,
-				filters,
-				"error",
-				`ラベルは最大${MAX_REPORT_LABEL_COUNT}個まで設定できます。`,
-			);
-		}
-
 		if (reports.length !== reportIds.length) {
 			return toAdminRedirect(
 				request,
@@ -349,95 +402,108 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
+		const labelMasterByCode = new Map(
+			labelMaster.map((label) => [label.code, toReportLabelRecord(label)]),
+		);
+
+		const requestedCodes = [
+			...genreCodes,
+			...(updateImpersonation && impersonationCode ? [impersonationCode] : []),
+			...(updateMedia && mediaCode ? [mediaCode] : []),
+			...(updateExpression && expressionCode ? [expressionCode] : []),
+		];
+		if (requestedCodes.some((code) => !labelMasterByCode.has(code))) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"選択されたラベルの一部が見つかりません。",
+			);
+		}
+
 		const result = await prisma.$transaction(
 			async (tx) => {
-				const createdLabels =
-					updateLabels && trulyNewLabels.length > 0
-						? await Promise.all(
-								trulyNewLabels.map((name) =>
-									tx.reportLabel.upsert({
-										where: { name },
-										update: {},
-										create: { name },
-										select: { id: true, name: true },
-									}),
-								),
-							)
-						: [];
-				const nextLabels = updateLabels
-					? [...existingSelectedLabels, ...createdLabels].sort((a, b) =>
-							a.name.localeCompare(b.name, "ja"),
-						)
-					: [];
-				const nextLabelNames = nextLabels.map((label) => label.name);
 				const updatedAt = new Date();
-				const changedReports = reports.filter((report) => {
-					const currentLabelNames = report.reportLabels.map(
-						(item) => item.label.name,
-					);
-					const normalizedVerdict =
-						nextStatus && isCompletedReportStatus(nextStatus.statusCode)
-							? nextVerdict
-							: nextStatus
-								? null
-								: report.verdict;
+				const changedReports = reports
+					.map((report) => {
+						const currentLabelRecords = report.reportLabels.map((item) =>
+							toReportLabelRecord(item.label),
+						);
+						const currentLabelNames =
+							flattenReportLabelNames(currentLabelRecords);
+						const nextCodes = updateLabels
+							? mergeBulkReportLabelCodes(currentLabelRecords, {
+									updateGenres,
+									clearGenres,
+									genreCodes,
+									updateImpersonation,
+									impersonationCode: impersonationCode || null,
+									updateMedia,
+									mediaCode: mediaCode || null,
+									updateExpression,
+									expressionCode: expressionCode || null,
+								})
+							: currentLabelRecords.map((label) => label.code);
+						const nextLabelRecords = sortReportLabels(
+							nextCodes
+								.map((code) => labelMasterByCode.get(code))
+								.filter((label): label is ReportLabelRecord => Boolean(label)),
+						);
+						const nextLabelNames = flattenReportLabelNames(nextLabelRecords);
+						const normalizedVerdict =
+							nextStatus && isCompletedReportStatus(nextStatus.statusCode)
+								? nextVerdict
+								: nextStatus
+									? null
+									: report.verdict;
+						const statusChanged =
+							(nextStatus !== null && report.statusId !== nextStatus.id) ||
+							report.verdict !== normalizedVerdict;
+						const labelsChanged = !areStringArraysEqual(
+							currentLabelNames,
+							nextLabelNames,
+						);
 
-					return (
-						(nextStatus !== null &&
-							(report.statusId !== nextStatus.id ||
-								report.verdict !== normalizedVerdict)) ||
-						(updateLabels &&
-							!areStringArraysEqual(currentLabelNames, nextLabelNames))
-					);
-				});
+						return {
+							report,
+							currentLabelNames,
+							nextLabelRecords,
+							nextLabelNames,
+							normalizedVerdict,
+							statusChanged,
+							labelsChanged,
+						};
+					})
+					.filter((entry) => entry.statusChanged || entry.labelsChanged);
 
 				if (changedReports.length === 0) {
-					return { changedReports: [] as typeof reports };
+					return { changedReportIds: [] as string[] };
 				}
 
-				const timelineEntries = changedReports.map((report) => {
-					const currentLabelNames = report.reportLabels.map(
-						(item) => item.label.name,
-					);
+				const timelineEntries = changedReports.map((entry) => {
 					const afterStatusCode =
-						nextStatus?.statusCode ?? report.status?.statusCode ?? null;
+						nextStatus?.statusCode ?? entry.report.status?.statusCode ?? null;
 					const afterStatusLabel = nextStatus
 						? (getReportStatusMeta(nextStatus.statusCode)?.label ??
 							nextStatus.label)
-						: (getReportStatusMeta(report.status?.statusCode)?.label ??
-							report.status?.label ??
+						: (getReportStatusMeta(entry.report.status?.statusCode)?.label ??
+							entry.report.status?.label ??
 							"未設定");
-					const afterVerdict =
-						nextStatus && isCompletedReportStatus(nextStatus.statusCode)
-							? nextVerdict
-							: nextStatus
-								? null
-								: report.verdict;
 					const beforeStatusLabel =
-						getReportStatusMeta(report.status?.statusCode)?.label ??
-						report.status?.label ??
+						getReportStatusMeta(entry.report.status?.statusCode)?.label ??
+						entry.report.status?.label ??
 						"未設定";
 					const beforeVerdictLabel =
-						getReportVerdictMeta(report.verdict)?.label ?? null;
+						getReportVerdictMeta(entry.report.verdict)?.label ?? null;
 					const afterVerdictLabel =
-						getReportVerdictMeta(afterVerdict)?.label ?? null;
-					const afterLabels = updateLabels
-						? nextLabels
-						: report.reportLabels.map((item) => item.label);
-					const afterLabelNames = afterLabels.map((label) => label.name);
-					const statusChanged =
-						(nextStatus !== null && report.statusId !== nextStatus.id) ||
-						report.verdict !== afterVerdict;
-					const labelsChanged = !areStringArraysEqual(
-						currentLabelNames,
-						afterLabelNames,
-					);
+						getReportVerdictMeta(entry.normalizedVerdict)?.label ?? null;
 
 					return {
-						reportId: report.id,
+						reportId: entry.report.id,
 						actionLabel: buildActionLabel({
-							statusChanged,
-							labelsChanged,
+							statusChanged: entry.statusChanged,
+							labelsChanged: entry.labelsChanged,
 							afterStatusCode,
 						}),
 						description: buildTimelineDescription({
@@ -445,34 +511,27 @@ export async function POST(request: NextRequest) {
 							afterStatusLabel,
 							beforeVerdictLabel,
 							afterVerdictLabel,
-							beforeLabels: currentLabelNames,
-							afterLabels: afterLabelNames,
+							beforeLabels: entry.currentLabelNames,
+							afterLabels: entry.nextLabelNames,
 						}),
 						createdBy: admin?.id ?? null,
 					};
 				});
 
 				if (updateLabels) {
-					for (const report of changedReports) {
-						const afterVerdict =
-							nextStatus && isCompletedReportStatus(nextStatus.statusCode)
-								? nextVerdict
-								: nextStatus
-									? null
-									: report.verdict;
-
+					for (const entry of changedReports) {
 						await tx.report.update({
-							where: { id: report.id },
+							where: { id: entry.report.id },
 							data: {
 								...(nextStatus
 									? {
 											statusId: nextStatus.id,
-											verdict: afterVerdict,
+											verdict: entry.normalizedVerdict,
 										}
 									: {}),
 								reportLabels: {
 									deleteMany: {},
-									create: nextLabels.map((label) => ({
+									create: entry.nextLabelRecords.map((label) => ({
 										label: {
 											connect: {
 												id: label.id,
@@ -494,7 +553,7 @@ export async function POST(request: NextRequest) {
 					await tx.report.updateMany({
 						where: {
 							id: {
-								in: changedReports.map((report) => report.id),
+								in: changedReports.map((entry) => entry.report.id),
 							},
 						},
 						data: {
@@ -509,12 +568,14 @@ export async function POST(request: NextRequest) {
 					data: timelineEntries,
 				});
 
-				return { changedReports };
+				return {
+					changedReportIds: changedReports.map((entry) => entry.report.id),
+				};
 			},
 			{ timeout: 20_000 },
 		);
 
-		if (result.changedReports.length === 0) {
+		if (result.changedReportIds.length === 0) {
 			return toAdminRedirect(
 				request,
 				currentPage,
@@ -528,9 +589,8 @@ export async function POST(request: NextRequest) {
 		revalidateTag("home-stats", "max");
 		revalidatePath(ADMIN_REPORT_STATUSES_PATH);
 		revalidatePath("/admin");
-		revalidatePath("/");
-		for (const report of result.changedReports) {
-			revalidatePath(`/reports/${report.id}`);
+		for (const reportId of result.changedReportIds) {
+			revalidatePath(`/reports/${reportId}`);
 		}
 
 		return toAdminRedirect(
@@ -538,7 +598,7 @@ export async function POST(request: NextRequest) {
 			currentPage,
 			filters,
 			"notice",
-			`${result.changedReports.length}件の通報を更新しました。`,
+			`${result.changedReportIds.length}件の通報を更新しました。`,
 		);
 	} catch (error) {
 		console.error("Failed to bulk update reports:", error);

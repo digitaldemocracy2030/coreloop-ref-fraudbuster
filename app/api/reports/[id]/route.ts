@@ -3,8 +3,9 @@ import {
 	notFoundResponse,
 	successResponse,
 } from "@/lib/api-utils";
-import { getSafeReportImageAbsoluteUrl } from "@/lib/report-image-delivery";
 import { prisma } from "@/lib/prisma";
+import { getSafeReportImageAbsoluteUrl } from "@/lib/report-image-delivery";
+import { flattenReportLabelNames } from "@/lib/report-labels";
 import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
@@ -13,6 +14,10 @@ import {
 	REPORT_STATUS_CODES,
 } from "@/lib/report-metadata";
 import type { ReportDetailResponse } from "@/lib/types/api";
+
+type ReportDetailRouteContext = {
+	params: Promise<{ id: string }>;
+};
 
 function isPresent<T>(value: T | null): value is T {
 	return value !== null;
@@ -33,10 +38,7 @@ function toReportVerdictRef(verdict: string | null) {
  * GET /api/reports/[id]
  * Get detailed report information including images and timeline
  */
-export async function GET(
-	_request: Request,
-	ctx: RouteContext<"/api/reports/[id]">,
-) {
+export async function GET(_request: Request, ctx: ReportDetailRouteContext) {
 	try {
 		const { id } = await ctx.params;
 
@@ -73,15 +75,17 @@ export async function GET(
 					select: {
 						label: {
 							select: {
+								code: true,
 								name: true,
+								groupCode: true,
+								displayOrder: true,
 							},
 						},
 					},
-					orderBy: {
-						label: {
-							name: "asc",
-						},
-					},
+					orderBy: [
+						{ label: { displayOrder: "asc" } },
+						{ label: { name: "asc" } },
+					],
 				},
 				images: {
 					select: {
@@ -130,7 +134,9 @@ export async function GET(
 					}
 				: null,
 			verdict: toReportVerdictRef(report.verdict),
-			labels: report.reportLabels.map((item) => item.label.name),
+			labels: flattenReportLabelNames(
+				report.reportLabels.map((item) => item.label),
+			),
 			images: report.images
 				.map((image) => {
 					const imageUrl = getSafeReportImageAbsoluteUrl(image, _request.url);

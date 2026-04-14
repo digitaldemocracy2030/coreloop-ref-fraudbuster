@@ -1,3 +1,10 @@
+import {
+	areReportLabelCodesInGroup,
+	REPORT_LABEL_GROUP_CODES,
+	type ReportLabelCode,
+	toUniqueStringArray,
+} from "./report-labels.ts";
+
 export const ADMIN_REPORT_STATUSES_PATH = "/admin/report-statuses";
 export const ADMIN_REPORT_STATUSES_PAGE_SIZE = 20;
 export const ADMIN_REPORT_STATUSES_PRESENCE_FILTER_VALUES = [
@@ -23,12 +30,16 @@ export type AdminReportStatusesVerdictCode =
 export type AdminReportStatusesVerdictFilter =
 	| (typeof ADMIN_REPORT_STATUSES_VERDICT_FILTER_VALUES)[number]
 	| AdminReportStatusesVerdictCode;
+export type AdminReportStatusesSingleLabelFilter = "all" | ReportLabelCode;
 
 export type AdminReportStatusesFilters = {
 	statusIds: number[];
 	verdictFilter: AdminReportStatusesVerdictFilter;
 	imageFilter: AdminReportStatusesPresenceFilter;
-	labelFilter: AdminReportStatusesPresenceFilter;
+	genreCodes: ReportLabelCode[];
+	impersonationCode: AdminReportStatusesSingleLabelFilter;
+	mediaCode: AdminReportStatusesSingleLabelFilter;
+	expressionCode: AdminReportStatusesSingleLabelFilter;
 };
 
 export function parseAdminReportStatusesPage(
@@ -70,17 +81,62 @@ export function parseAdminReportStatusesVerdictFilter(
 	);
 }
 
+function parseAdminReportStatusesGenreCodes(
+	value: string | string[] | null | undefined,
+) {
+	const values = toUniqueStringArray(
+		(Array.isArray(value) ? value : [value]).filter(
+			(item): item is string => typeof item === "string",
+		),
+	);
+
+	return areReportLabelCodesInGroup(values, REPORT_LABEL_GROUP_CODES.GENRE)
+		? values
+		: [];
+}
+
+function parseAdminReportStatusesSingleLabelCode(
+	value: string | null | undefined,
+	groupCode:
+		| typeof REPORT_LABEL_GROUP_CODES.IMPERSONATION
+		| typeof REPORT_LABEL_GROUP_CODES.MEDIA_SPOOF
+		| typeof REPORT_LABEL_GROUP_CODES.EXPRESSION,
+): AdminReportStatusesSingleLabelFilter {
+	if (!value || value === "all") {
+		return "all";
+	}
+
+	return areReportLabelCodesInGroup([value], groupCode)
+		? (value as AdminReportStatusesSingleLabelFilter)
+		: "all";
+}
+
 export function parseAdminReportStatusesFilters(values: {
 	statusId?: string | string[] | null | undefined;
 	verdictFilter?: string | null | undefined;
 	imageFilter?: string | null | undefined;
-	labelFilter?: string | null | undefined;
+	genre?: string | string[] | null | undefined;
+	impersonation?: string | null | undefined;
+	media?: string | null | undefined;
+	expression?: string | null | undefined;
 }): AdminReportStatusesFilters {
 	return {
 		statusIds: parseAdminReportStatusesStatusIds(values.statusId),
 		verdictFilter: parseAdminReportStatusesVerdictFilter(values.verdictFilter),
 		imageFilter: parseAdminReportStatusesPresenceFilter(values.imageFilter),
-		labelFilter: parseAdminReportStatusesPresenceFilter(values.labelFilter),
+		genreCodes: parseAdminReportStatusesGenreCodes(values.genre),
+		impersonationCode: parseAdminReportStatusesSingleLabelCode(
+			values.impersonation,
+			REPORT_LABEL_GROUP_CODES.IMPERSONATION,
+		),
+		mediaCode: parseAdminReportStatusesSingleLabelCode(
+			values.media,
+			REPORT_LABEL_GROUP_CODES.MEDIA_SPOOF,
+		),
+		expressionCode: parseAdminReportStatusesSingleLabelCode(
+			values.expression,
+			REPORT_LABEL_GROUP_CODES.EXPRESSION,
+		),
 	};
 }
 
@@ -91,7 +147,10 @@ export function hasActiveAdminReportStatusesFilters(
 		filters.statusIds.length > 0 ||
 		filters.verdictFilter !== "all" ||
 		filters.imageFilter !== "all" ||
-		filters.labelFilter !== "all"
+		filters.genreCodes.length > 0 ||
+		filters.impersonationCode !== "all" ||
+		filters.mediaCode !== "all" ||
+		filters.expressionCode !== "all"
 	);
 }
 
@@ -117,8 +176,17 @@ export function buildAdminReportStatusesPath(options?: {
 	if (filters?.imageFilter && filters.imageFilter !== "all") {
 		searchParams.set("imageFilter", filters.imageFilter);
 	}
-	if (filters?.labelFilter && filters.labelFilter !== "all") {
-		searchParams.set("labelFilter", filters.labelFilter);
+	for (const genreCode of filters?.genreCodes ?? []) {
+		searchParams.append("genre", genreCode);
+	}
+	if (filters?.impersonationCode && filters.impersonationCode !== "all") {
+		searchParams.set("impersonation", filters.impersonationCode);
+	}
+	if (filters?.mediaCode && filters.mediaCode !== "all") {
+		searchParams.set("media", filters.mediaCode);
+	}
+	if (filters?.expressionCode && filters.expressionCode !== "all") {
+		searchParams.set("expression", filters.expressionCode);
 	}
 	if (options?.notice) {
 		searchParams.set("notice", options.notice);

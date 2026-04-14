@@ -49,11 +49,27 @@ INSERT INTO report_statuses (status_code, label, badge_color) VALUES
   ('INVESTIGATING', '調査中', 'blue'),
   ('COMPLETED', '完了', 'emerald');
 
-INSERT INTO report_labels (name) VALUES
-  ('なりすまし'),
-  ('美容系'),
-  ('投資系'),
-  ('オンラインカジノ');
+INSERT INTO report_labels (code, name, group_code, display_order) VALUES
+  ('GENRE_ONLINE_CASINO', 'オンラインカジノ', 'GENRE', 10),
+  ('GENRE_ONLINE_SHOPPING', 'オンラインショッピング', 'GENRE', 11),
+  ('GENRE_INVESTMENT', '投資系', 'GENRE', 12),
+  ('GENRE_BEAUTY', '美容系', 'GENRE', 13),
+  ('GENRE_HEALTH', '健康系', 'GENRE', 14),
+  ('GENRE_ADULT', '性的広告', 'GENRE', 15),
+  ('GENRE_ROMANCE', 'デート（ロマンス）', 'GENRE', 16),
+  ('GENRE_HIGH_PAYING_JOB', '高額バイト', 'GENRE', 17),
+  ('GENRE_CONSUMER_FINANCE', '消費者金融', 'GENRE', 18),
+  ('GENRE_OTHER', 'その他（動物・宗教）', 'GENRE', 19),
+  ('IMPERSONATION_CELEBRITY_USED', '有名人を使っている', 'IMPERSONATION', 20),
+  ('IMPERSONATION_NONE', '有名人を使っていない', 'IMPERSONATION', 21),
+  ('MEDIA_NHK', 'NHK', 'MEDIA_SPOOF', 30),
+  ('MEDIA_YOMIURI', '読売新聞', 'MEDIA_SPOOF', 31),
+  ('MEDIA_YAHOO_SHOPPING', 'Yahoo!ショッピング', 'MEDIA_SPOOF', 32),
+  ('MEDIA_AMAZON', 'amazon', 'MEDIA_SPOOF', 33),
+  ('MEDIA_NONE', '騙っていない', 'MEDIA_SPOOF', 34),
+  ('EXPRESSION_EXAGGERATED', '誇大表現', 'EXPRESSION', 40),
+  ('EXPRESSION_VIRUS', 'ウィルス感染', 'EXPRESSION', 41),
+  ('EXPRESSION_NONE', '誇大表現はない', 'EXPRESSION', 42);
 
 -- =============================================
 -- 2) Users & admins
@@ -123,9 +139,18 @@ INSERT INTO reports (
   );
 
 INSERT INTO report_label_relations (report_id, label_id) VALUES
-  ('rpt8k2m1xq9v', (SELECT id FROM report_labels WHERE name = 'なりすまし')),
-  ('rpt4d7n3b6ty', (SELECT id FROM report_labels WHERE name = '投資系')),
-  ('rpt1z5c8w2hj', (SELECT id FROM report_labels WHERE name = '美容系'));
+  ('rpt8k2m1xq9v', (SELECT id FROM report_labels WHERE code = 'GENRE_ONLINE_SHOPPING')),
+  ('rpt8k2m1xq9v', (SELECT id FROM report_labels WHERE code = 'IMPERSONATION_NONE')),
+  ('rpt8k2m1xq9v', (SELECT id FROM report_labels WHERE code = 'MEDIA_NHK')),
+  ('rpt8k2m1xq9v', (SELECT id FROM report_labels WHERE code = 'EXPRESSION_VIRUS')),
+  ('rpt4d7n3b6ty', (SELECT id FROM report_labels WHERE code = 'GENRE_INVESTMENT')),
+  ('rpt4d7n3b6ty', (SELECT id FROM report_labels WHERE code = 'IMPERSONATION_CELEBRITY_USED')),
+  ('rpt4d7n3b6ty', (SELECT id FROM report_labels WHERE code = 'MEDIA_YOMIURI')),
+  ('rpt4d7n3b6ty', (SELECT id FROM report_labels WHERE code = 'EXPRESSION_EXAGGERATED')),
+  ('rpt1z5c8w2hj', (SELECT id FROM report_labels WHERE code = 'GENRE_HIGH_PAYING_JOB')),
+  ('rpt1z5c8w2hj', (SELECT id FROM report_labels WHERE code = 'IMPERSONATION_NONE')),
+  ('rpt1z5c8w2hj', (SELECT id FROM report_labels WHERE code = 'MEDIA_NONE')),
+  ('rpt1z5c8w2hj', (SELECT id FROM report_labels WHERE code = 'EXPRESSION_NONE'));
 
 INSERT INTO report_images (id, report_id, image_url, display_order, created_at) VALUES
   ('31000000-0000-4000-8000-000000000001', 'rpt8k2m1xq9v', 'https://cdn.example.com/reports/line-phishing-01.png', 1, CURRENT_TIMESTAMP - INTERVAL '9 days'),
