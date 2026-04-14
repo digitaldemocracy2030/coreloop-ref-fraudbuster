@@ -70,8 +70,6 @@ const REPORT_VERDICT_META: Record<
 	},
 };
 
-export const MAX_REPORT_LABEL_COUNT = 10;
-export const MAX_REPORT_LABEL_LENGTH = 30;
 export const REPORT_LABEL_BADGE_CLASS_NAME =
 	"border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-100";
 
@@ -117,37 +115,4 @@ export function compareReportStatusCodes(
 		: REPORT_STATUS_ORDER.length;
 
 	return leftIndex - rightIndex;
-}
-
-export function normalizeReportLabel(label: string) {
-	return label.trim().replace(/\s+/g, " ");
-}
-
-export function parseReportLabels(value: string) {
-	const uniqueLabels = new Set<string>();
-
-	for (const rawLabel of value.split(/[\n,]/)) {
-		const label = normalizeReportLabel(rawLabel);
-		if (!label) {
-			continue;
-		}
-		uniqueLabels.add(label);
-	}
-
-	return Array.from(uniqueLabels);
-}
-
-export function validateReportLabels(labels: string[]) {
-	if (labels.length > MAX_REPORT_LABEL_COUNT) {
-		return `ラベルは最大${MAX_REPORT_LABEL_COUNT}個まで設定できます。`;
-	}
-
-	const invalidLabel = labels.find(
-		(label) => label.length > MAX_REPORT_LABEL_LENGTH,
-	);
-	if (invalidLabel) {
-		return `ラベルは1件あたり${MAX_REPORT_LABEL_LENGTH}文字以内で入力してください。`;
-	}
-
-	return null;
 }

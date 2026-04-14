@@ -56,9 +56,20 @@ export async function POST(
 			typeof formData.get("returnImageFilter") === "string"
 				? String(formData.get("returnImageFilter"))
 				: null,
-		labelFilter:
-			typeof formData.get("returnLabelFilter") === "string"
-				? String(formData.get("returnLabelFilter"))
+		genre: formData
+			.getAll("returnGenre")
+			.filter((value): value is string => typeof value === "string"),
+		impersonation:
+			typeof formData.get("returnImpersonation") === "string"
+				? String(formData.get("returnImpersonation"))
+				: null,
+		media:
+			typeof formData.get("returnMedia") === "string"
+				? String(formData.get("returnMedia"))
+				: null,
+		expression:
+			typeof formData.get("returnExpression") === "string"
+				? String(formData.get("returnExpression"))
 				: null,
 	});
 	const session = getAdminSessionFromRequest(request);

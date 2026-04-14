@@ -129,11 +129,16 @@ model ReportTimeline {
 }
 
 model ReportLabel {
-  id       Int                   @id @default(autoincrement())
-  name     String                @unique @db.VarChar(50)
-  reports  ReportLabelRelation[]
+  id           Int                   @id @default(autoincrement())
+  code         String                @unique @db.VarChar(64)
+  name         String                @db.VarChar(50)
+  groupCode    String                @map("group_code") @db.VarChar(30)
+  displayOrder Int                   @default(0) @map("display_order")
+  reports      ReportLabelRelation[]
 
   @@map("report_labels")
+  @@unique([groupCode, name])
+  @@index([groupCode, displayOrder])
 }
 
 model ReportLabelRelation {

@@ -18,6 +18,7 @@ import {
 import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
+import { sortReportLabels } from "@/lib/report-labels";
 import {
 	compareReportStatusCodes,
 	REPORT_VERDICT_CODES,
@@ -31,7 +32,10 @@ interface AdminReportStatusesPageProps {
 		statusId?: string | string[];
 		verdictFilter?: string;
 		imageFilter?: string;
-		labelFilter?: string;
+		genre?: string | string[];
+		impersonation?: string;
+		media?: string;
+		expression?: string;
 	}>;
 }
 
@@ -48,8 +52,67 @@ export default async function AdminReportStatusesPage({
 		statusId: params.statusId,
 		verdictFilter: params.verdictFilter,
 		imageFilter: params.imageFilter,
-		labelFilter: params.labelFilter,
+		genre: params.genre,
+		impersonation: params.impersonation,
+		media: params.media,
+		expression: params.expression,
 	});
+	const labelFilters = [
+		...(filters.genreCodes.length > 0
+			? [
+					{
+						reportLabels: {
+							some: {
+								label: {
+									code: {
+										in: filters.genreCodes,
+									},
+								},
+							},
+						},
+					},
+				]
+			: []),
+		...(filters.impersonationCode !== "all"
+			? [
+					{
+						reportLabels: {
+							some: {
+								label: {
+									code: filters.impersonationCode,
+								},
+							},
+						},
+					},
+				]
+			: []),
+		...(filters.mediaCode !== "all"
+			? [
+					{
+						reportLabels: {
+							some: {
+								label: {
+									code: filters.mediaCode,
+								},
+							},
+						},
+					},
+				]
+			: []),
+		...(filters.expressionCode !== "all"
+			? [
+					{
+						reportLabels: {
+							some: {
+								label: {
+									code: filters.expressionCode,
+								},
+							},
+						},
+					},
+				]
+			: []),
+	];
 	const reportWhere = {
 		...(filters.statusIds.length > 0
 			? {
@@ -80,34 +143,19 @@ export default async function AdminReportStatusesPage({
 						},
 					}
 				: {}),
-		...(filters.labelFilter === "with"
+		...(labelFilters.length > 0
 			? {
-					reportLabels: {
-						some: {},
-					},
+					AND: labelFilters,
 				}
-			: filters.labelFilter === "without"
-				? {
-						reportLabels: {
-							none: {},
-						},
-					}
-				: {}),
+			: {}),
 	};
 
-	const [reportStatuses, availableLabels, totalReports] = await Promise.all([
+	const [reportStatuses, totalReports] = await Promise.all([
 		prisma.reportStatus.findMany({
 			select: {
 				id: true,
 				statusCode: true,
 				label: true,
-			},
-		}),
-		prisma.reportLabel.findMany({
-			orderBy: { name: "asc" },
-			select: {
-				id: true,
-				name: true,
 			},
 		}),
 		prisma.report.count({
@@ -137,14 +185,16 @@ export default async function AdminReportStatusesPage({
 						select: {
 							id: true,
 							name: true,
+							code: true,
+							groupCode: true,
+							displayOrder: true,
 						},
 					},
 				},
-				orderBy: {
-					label: {
-						name: "asc",
-					},
-				},
+				orderBy: [
+					{ label: { displayOrder: "asc" } },
+					{ label: { name: "asc" } },
+				],
 			},
 			images: {
 				select: {
@@ -199,10 +249,15 @@ export default async function AdminReportStatusesPage({
 			statusCode: report.status?.statusCode ?? null,
 			statusLabel: report.status?.label ?? null,
 			verdict: report.verdict,
-			reportLabels: report.reportLabels.map(({ label }) => ({
-				id: label.id,
-				name: label.name,
-			})),
+			reportLabels: sortReportLabels(
+				report.reportLabels.map(({ label }) => ({
+					id: label.id,
+					name: label.name,
+					code: label.code,
+					groupCode: label.groupCode,
+					displayOrder: label.displayOrder,
+				})),
+			),
 			imagePreviews,
 			remainingImageCount,
 		};
@@ -236,8 +291,7 @@ export default async function AdminReportStatusesPage({
 							</p>
 						) : null}
 						<ReportStatusesTable
-							key={`${currentPage}-${filters.statusIds.join(",") || "all"}-${filters.verdictFilter}-${filters.imageFilter}-${filters.labelFilter}-${reportRows[0]?.id ?? "empty"}-${reportRows.length}`}
-							availableLabels={availableLabels}
+							key={`${currentPage}-${filters.statusIds.join(",") || "all"}-${filters.verdictFilter}-${filters.imageFilter}-${filters.genreCodes.join(",") || "all"}-${filters.impersonationCode}-${filters.mediaCode}-${filters.expressionCode}-${reportRows[0]?.id ?? "empty"}-${reportRows.length}`}
 							currentPage={currentPage}
 							filters={filters}
 							reportStatusOptions={reportStatusOptions}

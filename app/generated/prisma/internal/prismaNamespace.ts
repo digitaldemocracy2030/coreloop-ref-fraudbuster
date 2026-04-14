@@ -1828,7 +1828,10 @@ export type ReportTimelineScalarFieldEnum =
 
 export const ReportLabelScalarFieldEnum = {
 	id: "id",
+	code: "code",
 	name: "name",
+	groupCode: "groupCode",
+	displayOrder: "displayOrder",
 } as const;
 
 export type ReportLabelScalarFieldEnum =

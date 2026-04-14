@@ -1,9 +1,13 @@
 import { revalidatePath, revalidateTag } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getAdminSessionFromRequest } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 const ANNOUNCEMENTS_ADMIN_PATH = "/admin/announcements";
+
+type AdminAnnouncementRouteContext = {
+	params: Promise<{ id: string }>;
+};
 
 function toAdminRedirect(
 	request: NextRequest,
@@ -30,7 +34,7 @@ function readCheckbox(formData: FormData, fieldName: string): boolean {
 
 export async function POST(
 	request: NextRequest,
-	ctx: RouteContext<"/api/admin/announcements/[id]">,
+	ctx: AdminAnnouncementRouteContext,
 ) {
 	const session = getAdminSessionFromRequest(request);
 	if (!session) {

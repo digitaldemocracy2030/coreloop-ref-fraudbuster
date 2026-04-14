@@ -9,13 +9,6 @@ import {
 	verifyTurnstileToken,
 } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
-import {
-	getReportStatusMeta,
-	getReportVerdictMeta,
-	isReportStatusCode,
-	isReportVerdictCode,
-	REPORT_STATUS_CODES,
-} from "@/lib/report-metadata";
 import { getSafeReportImageAbsoluteUrl } from "@/lib/report-image-delivery";
 import {
 	ReportImageUploadValidationError,
@@ -30,7 +23,15 @@ import {
 	type StoredReportImage,
 } from "@/lib/report-image-storage";
 import { PUBLIC_REPORT_IMAGE_UPLOAD_LIMITS } from "@/lib/report-image-upload";
+import { flattenReportLabelNames } from "@/lib/report-labels";
 import { fetchReportLinkPreview } from "@/lib/report-link-preview";
+import {
+	getReportStatusMeta,
+	getReportVerdictMeta,
+	isReportStatusCode,
+	isReportVerdictCode,
+	REPORT_STATUS_CODES,
+} from "@/lib/report-metadata";
 import { mirrorReportPreviewThumbnail } from "@/lib/report-thumbnail-ingest";
 import type {
 	ReportSortOrder,
@@ -303,15 +304,17 @@ export async function GET(request: NextRequest) {
 					select: {
 						label: {
 							select: {
+								code: true,
 								name: true,
+								groupCode: true,
+								displayOrder: true,
 							},
 						},
 					},
-					orderBy: {
-						label: {
-							name: "asc",
-						},
-					},
+					orderBy: [
+						{ label: { displayOrder: "asc" } },
+						{ label: { name: "asc" } },
+					],
 				},
 				images: {
 					select: {
@@ -343,7 +346,9 @@ export async function GET(request: NextRequest) {
 					createdAt: report.createdAt?.toISOString() ?? null,
 					status: toReportStatusRef(report.status),
 					verdict: toReportVerdictRef(report.verdict),
-					labels: report.reportLabels.map((item) => item.label.name),
+					labels: flattenReportLabelNames(
+						report.reportLabels.map((item) => item.label),
+					),
 					images: report.images
 						.map((image) => toSafeReportResponseImage(image, request.url))
 						.filter(isPresent),
@@ -561,15 +566,17 @@ export async function POST(request: NextRequest) {
 						select: {
 							label: {
 								select: {
+									code: true,
 									name: true,
+									groupCode: true,
+									displayOrder: true,
 								},
 							},
 						},
-						orderBy: {
-							label: {
-								name: "asc",
-							},
-						},
+						orderBy: [
+							{ label: { displayOrder: "asc" } },
+							{ label: { name: "asc" } },
+						],
 					},
 					images: {
 						select: {
@@ -607,7 +614,9 @@ export async function POST(request: NextRequest) {
 				...report,
 				status: toReportStatusRef(report.status),
 				verdict: toReportVerdictRef(report.verdict),
-				labels: report.reportLabels.map((item) => item.label.name),
+				labels: flattenReportLabelNames(
+					report.reportLabels.map((item) => item.label),
+				),
 				images: report.images
 					.map((image) => toSafeReportResponseImage(image, request.url))
 					.filter(isPresent),

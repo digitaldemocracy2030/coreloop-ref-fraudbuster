@@ -1,7 +1,7 @@
 import { AlertTriangle, Calendar, CheckCircle2, Clock } from "lucide-react";
+import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -13,12 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
+import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
+import { flattenReportLabelNames } from "@/lib/report-labels";
 import {
-	REPORT_LABEL_BADGE_CLASS_NAME,
 	getReportStatusMeta,
 	getReportVerdictMeta,
+	REPORT_LABEL_BADGE_CLASS_NAME,
 } from "@/lib/report-metadata";
-import { getSafeReportImageProxyPath } from "@/lib/report-image-delivery";
 import { maskReportUrl } from "@/lib/report-url";
 import { SITE_NAME } from "@/lib/site";
 import { getSiteUrl } from "@/lib/site-url";
@@ -45,15 +46,17 @@ async function getReportById(id: string) {
 				select: {
 					label: {
 						select: {
+							code: true,
 							name: true,
+							groupCode: true,
+							displayOrder: true,
 						},
 					},
 				},
-				orderBy: {
-					label: {
-						name: "asc",
-					},
-				},
+				orderBy: [
+					{ label: { displayOrder: "asc" } },
+					{ label: { name: "asc" } },
+				],
 			},
 			images: {
 				select: {
@@ -228,7 +231,9 @@ export default async function ReportDetailPage({
 	)?.badgeClassName;
 	const verdict = getReportVerdictMeta(report.verdict);
 	const verdictLabel = verdict?.label ?? null;
-	const labels = report.reportLabels.map((item) => item.label.name);
+	const labels = flattenReportLabelNames(
+		report.reportLabels.map((item) => item.label),
+	);
 
 	return (
 		<div className="container py-10 space-y-10">

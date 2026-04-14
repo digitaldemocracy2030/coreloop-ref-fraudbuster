@@ -9,16 +9,25 @@ import {
 } from "@/lib/admin-report-statuses";
 import { prisma } from "@/lib/prisma";
 import {
+	areReportLabelCodesInGroup,
+	buildSingleReportLabelCodes,
+	flattenReportLabelNames,
+	REPORT_LABEL_GROUP_CODES,
+	type ReportLabelRecord,
+	sortReportLabels,
+	toUniqueStringArray,
+} from "@/lib/report-labels";
+import {
 	getReportStatusMeta,
 	getReportVerdictMeta,
 	isCompletedReportStatus,
 	isReportVerdictCode,
-	MAX_REPORT_LABEL_COUNT,
-	normalizeReportLabel,
-	parseReportLabels,
 	type ReportVerdictCode,
-	validateReportLabels,
 } from "@/lib/report-metadata";
+
+type AdminReportStatusRouteContext = {
+	params: Promise<{ id: string }>;
+};
 
 function toAdminRedirect(
 	request: NextRequest,
@@ -38,6 +47,14 @@ function toAdminRedirect(
 function readText(formData: FormData, fieldName: string): string {
 	const value = formData.get(fieldName);
 	return typeof value === "string" ? value.trim() : "";
+}
+
+function readMultiValues(formData: FormData, fieldName: string) {
+	return toUniqueStringArray(
+		formData
+			.getAll(fieldName)
+			.filter((value): value is string => typeof value === "string"),
+	);
 }
 
 function areStringArraysEqual(left: string[], right: string[]) {
@@ -86,9 +103,25 @@ function buildUpdateTimelineDescription(params: {
 	return changes.join(" / ");
 }
 
+function toReportLabelRecord(label: {
+	id: number;
+	code: string;
+	name: string;
+	groupCode: string;
+	displayOrder: number;
+}): ReportLabelRecord {
+	return {
+		id: label.id,
+		code: label.code,
+		name: label.name,
+		groupCode: label.groupCode,
+		displayOrder: label.displayOrder,
+	};
+}
+
 export async function POST(
 	request: NextRequest,
-	ctx: RouteContext<"/api/admin/reports/[id]/status">,
+	ctx: AdminReportStatusRouteContext,
 ) {
 	const session = getAdminSessionFromRequest(request);
 	if (!session) {
@@ -105,7 +138,12 @@ export async function POST(
 			.filter((value): value is string => typeof value === "string"),
 		verdictFilter: readText(formData, "returnVerdictFilter"),
 		imageFilter: readText(formData, "returnImageFilter"),
-		labelFilter: readText(formData, "returnLabelFilter"),
+		genre: formData
+			.getAll("returnGenre")
+			.filter((value): value is string => typeof value === "string"),
+		impersonation: readText(formData, "returnImpersonation"),
+		media: readText(formData, "returnMedia"),
+		expression: readText(formData, "returnExpression"),
 	});
 
 	try {
@@ -113,14 +151,11 @@ export async function POST(
 		const statusId = Number.parseInt(readText(formData, "statusId"), 10);
 		const rawVerdict = readText(formData, "verdict");
 		let nextVerdict: ReportVerdictCode | null = null;
-		const selectedLabelIds = formData
-			.getAll("selectedLabelIds")
-			.map((value) =>
-				typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN,
-			)
-			.filter((value) => Number.isInteger(value) && value > 0);
-		const parsedNewLabels = parseReportLabels(readText(formData, "newLabels"));
-		const labelsError = validateReportLabels(parsedNewLabels);
+
+		const genreCodes = readMultiValues(formData, "genreCodes");
+		const impersonationCode = readText(formData, "impersonationCode");
+		const mediaCode = readText(formData, "mediaCode");
+		const expressionCode = readText(formData, "expressionCode");
 
 		if (!reportId || Number.isNaN(statusId)) {
 			return toAdminRedirect(
@@ -131,13 +166,60 @@ export async function POST(
 				"通報IDまたはステータスが不正です。",
 			);
 		}
-		if (labelsError) {
+		if (
+			!areReportLabelCodesInGroup(genreCodes, REPORT_LABEL_GROUP_CODES.GENRE)
+		) {
 			return toAdminRedirect(
 				request,
 				currentPage,
 				filters,
 				"error",
-				labelsError,
+				"ジャンルの値が不正です。",
+			);
+		}
+		if (
+			!impersonationCode ||
+			!areReportLabelCodesInGroup(
+				[impersonationCode],
+				REPORT_LABEL_GROUP_CODES.IMPERSONATION,
+			)
+		) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"なりすましは必須です。",
+			);
+		}
+		if (
+			!mediaCode ||
+			!areReportLabelCodesInGroup(
+				[mediaCode],
+				REPORT_LABEL_GROUP_CODES.MEDIA_SPOOF,
+			)
+		) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"他メディアの値が不正です。",
+			);
+		}
+		if (
+			!expressionCode ||
+			!areReportLabelCodesInGroup(
+				[expressionCode],
+				REPORT_LABEL_GROUP_CODES.EXPRESSION,
+			)
+		) {
+			return toAdminRedirect(
+				request,
+				currentPage,
+				filters,
+				"error",
+				"表現の値が不正です。",
 			);
 		}
 		if (rawVerdict.length > 0) {
@@ -152,54 +234,64 @@ export async function POST(
 			}
 			nextVerdict = rawVerdict;
 		}
-		const [report, nextStatus, admin, existingSelectedLabels] =
-			await Promise.all([
-				prisma.report.findUnique({
-					where: { id: reportId },
-					select: {
-						id: true,
-						statusId: true,
-						verdict: true,
-						reportLabels: {
-							select: {
-								label: {
-									select: {
-										id: true,
-										name: true,
-									},
-								},
-							},
-							orderBy: {
-								label: {
-									name: "asc",
+
+		const selectedCodes = buildSingleReportLabelCodes({
+			genreCodes,
+			impersonationCode,
+			mediaCode,
+			expressionCode,
+		});
+
+		const [report, nextStatus, admin, selectedLabels] = await Promise.all([
+			prisma.report.findUnique({
+				where: { id: reportId },
+				select: {
+					id: true,
+					statusId: true,
+					verdict: true,
+					reportLabels: {
+						select: {
+							label: {
+								select: {
+									id: true,
+									code: true,
+									name: true,
+									groupCode: true,
+									displayOrder: true,
 								},
 							},
 						},
-						status: { select: { label: true, statusCode: true } },
+						orderBy: [
+							{ label: { displayOrder: "asc" } },
+							{ label: { name: "asc" } },
+						],
 					},
-				}),
-				prisma.reportStatus.findUnique({
-					where: { id: statusId },
-					select: { id: true, label: true, statusCode: true },
-				}),
-				prisma.admin.findUnique({
-					where: { email: session.email },
-					select: { id: true },
-				}),
-				selectedLabelIds.length > 0
-					? prisma.reportLabel.findMany({
-							where: {
-								id: {
-									in: selectedLabelIds,
-								},
-							},
-							select: {
-								id: true,
-								name: true,
-							},
-						})
-					: Promise.resolve([]),
-			]);
+					status: { select: { label: true, statusCode: true } },
+				},
+			}),
+			prisma.reportStatus.findUnique({
+				where: { id: statusId },
+				select: { id: true, label: true, statusCode: true },
+			}),
+			prisma.admin.findUnique({
+				where: { email: session.email },
+				select: { id: true },
+			}),
+			prisma.reportLabel.findMany({
+				where: {
+					code: {
+						in: selectedCodes,
+					},
+				},
+				select: {
+					id: true,
+					code: true,
+					name: true,
+					groupCode: true,
+					displayOrder: true,
+				},
+			}),
+		]);
 
 		if (!report) {
 			return toAdminRedirect(
@@ -228,8 +320,7 @@ export async function POST(
 				"完了ステータスにする場合は判定結果を選択してください。",
 			);
 		}
-
-		if (existingSelectedLabels.length !== selectedLabelIds.length) {
+		if (selectedLabels.length !== selectedCodes.length) {
 			return toAdminRedirect(
 				request,
 				currentPage,
@@ -239,45 +330,15 @@ export async function POST(
 			);
 		}
 
-		const selectedLabelNameSet = new Set(
-			existingSelectedLabels.map((label) => normalizeReportLabel(label.name)),
+		const currentLabels = flattenReportLabelNames(
+			report.reportLabels.map((item) => toReportLabelRecord(item.label)),
 		);
-		const trulyNewLabels = parsedNewLabels.filter(
-			(label) => !selectedLabelNameSet.has(label),
-		);
-		if (
-			existingSelectedLabels.length + trulyNewLabels.length >
-			MAX_REPORT_LABEL_COUNT
-		) {
-			return toAdminRedirect(
-				request,
-				currentPage,
-				filters,
-				"error",
-				`ラベルは最大${MAX_REPORT_LABEL_COUNT}個まで設定できます。`,
-			);
-		}
-		const currentLabels = report.reportLabels.map((item) => item.label.name);
 
 		const result = await prisma.$transaction(async (tx) => {
-			const createdLabels =
-				trulyNewLabels.length > 0
-					? await Promise.all(
-							trulyNewLabels.map((name) =>
-								tx.reportLabel.upsert({
-									where: { name },
-									update: {},
-									create: { name },
-									select: { id: true, name: true },
-								}),
-							),
-						)
-					: [];
-
-			const allLabels = [...existingSelectedLabels, ...createdLabels].sort(
-				(a, b) => a.name.localeCompare(b.name, "ja"),
+			const nextLabelRecords = sortReportLabels(
+				selectedLabels.map(toReportLabelRecord),
 			);
-			const nextLabelNames = allLabels.map((label) => label.name);
+			const nextLabelNames = flattenReportLabelNames(nextLabelRecords);
 			const normalizedVerdict = isCompletedReportStatus(nextStatus.statusCode)
 				? nextVerdict
 				: null;
@@ -316,7 +377,7 @@ export async function POST(
 					verdict: normalizedVerdict,
 					reportLabels: {
 						deleteMany: {},
-						create: allLabels.map((label) => ({
+						create: nextLabelRecords.map((label) => ({
 							label: {
 								connect: {
 									id: label.id,
@@ -327,13 +388,12 @@ export async function POST(
 					updatedAt: new Date(),
 				},
 			});
+
 			await tx.reportTimeline.create({
 				data: {
 					reportId,
-					actionLabel: isCompletedReportStatus(nextStatus.statusCode)
-						? "判定済み"
-						: "内容更新",
-					description: timelineDescription,
+					actionLabel: "審査内容更新",
+					description: timelineDescription || "審査内容を更新しました。",
 					createdBy: admin?.id ?? null,
 				},
 			});
@@ -355,14 +415,13 @@ export async function POST(
 		revalidateTag("home-stats", "max");
 		revalidatePath(ADMIN_REPORT_STATUSES_PATH);
 		revalidatePath("/admin");
-		revalidatePath("/");
 		revalidatePath(`/reports/${reportId}`);
 		return toAdminRedirect(
 			request,
 			currentPage,
 			filters,
 			"notice",
-			"通報情報を更新しました。",
+			"通報内容を更新しました。",
 		);
 	} catch (error) {
 		console.error("Failed to update report status:", error);
@@ -371,7 +430,7 @@ export async function POST(
 			currentPage,
 			filters,
 			"error",
-			"通報情報の更新に失敗しました。",
+			"通報内容の更新に失敗しました。",
 		);
 	}
 }

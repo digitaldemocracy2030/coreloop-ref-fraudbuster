@@ -28,49 +28,71 @@ export type AggregateReportLabel = {
 
 export type ReportLabelAvgAggregateOutputType = {
 	id: number | null;
+	displayOrder: number | null;
 };
 
 export type ReportLabelSumAggregateOutputType = {
 	id: number | null;
+	displayOrder: number | null;
 };
 
 export type ReportLabelMinAggregateOutputType = {
 	id: number | null;
+	code: string | null;
 	name: string | null;
+	groupCode: string | null;
+	displayOrder: number | null;
 };
 
 export type ReportLabelMaxAggregateOutputType = {
 	id: number | null;
+	code: string | null;
 	name: string | null;
+	groupCode: string | null;
+	displayOrder: number | null;
 };
 
 export type ReportLabelCountAggregateOutputType = {
 	id: number;
+	code: number;
 	name: number;
+	groupCode: number;
+	displayOrder: number;
 	_all: number;
 };
 
 export type ReportLabelAvgAggregateInputType = {
 	id?: true;
+	displayOrder?: true;
 };
 
 export type ReportLabelSumAggregateInputType = {
 	id?: true;
+	displayOrder?: true;
 };
 
 export type ReportLabelMinAggregateInputType = {
 	id?: true;
+	code?: true;
 	name?: true;
+	groupCode?: true;
+	displayOrder?: true;
 };
 
 export type ReportLabelMaxAggregateInputType = {
 	id?: true;
+	code?: true;
 	name?: true;
+	groupCode?: true;
+	displayOrder?: true;
 };
 
 export type ReportLabelCountAggregateInputType = {
 	id?: true;
+	code?: true;
 	name?: true;
+	groupCode?: true;
+	displayOrder?: true;
 	_all?: true;
 };
 
@@ -169,7 +191,10 @@ export type ReportLabelGroupByArgs<
 
 export type ReportLabelGroupByOutputType = {
 	id: number;
+	code: string;
 	name: string;
+	groupCode: string;
+	displayOrder: number;
 	_count: ReportLabelCountAggregateOutputType | null;
 	_avg: ReportLabelAvgAggregateOutputType | null;
 	_sum: ReportLabelSumAggregateOutputType | null;
@@ -195,31 +220,44 @@ export type ReportLabelWhereInput = {
 	OR?: Prisma.ReportLabelWhereInput[];
 	NOT?: Prisma.ReportLabelWhereInput | Prisma.ReportLabelWhereInput[];
 	id?: Prisma.IntFilter<"ReportLabel"> | number;
+	code?: Prisma.StringFilter<"ReportLabel"> | string;
 	name?: Prisma.StringFilter<"ReportLabel"> | string;
+	groupCode?: Prisma.StringFilter<"ReportLabel"> | string;
+	displayOrder?: Prisma.IntFilter<"ReportLabel"> | number;
 	reports?: Prisma.ReportLabelRelationListRelationFilter;
 };
 
 export type ReportLabelOrderByWithRelationInput = {
 	id?: Prisma.SortOrder;
+	code?: Prisma.SortOrder;
 	name?: Prisma.SortOrder;
+	groupCode?: Prisma.SortOrder;
+	displayOrder?: Prisma.SortOrder;
 	reports?: Prisma.ReportLabelRelationOrderByRelationAggregateInput;
 };
 
 export type ReportLabelWhereUniqueInput = Prisma.AtLeast<
 	{
 		id?: number;
-		name?: string;
+		code?: string;
+		groupCode_name?: Prisma.ReportLabelGroupCodeNameCompoundUniqueInput;
 		AND?: Prisma.ReportLabelWhereInput | Prisma.ReportLabelWhereInput[];
 		OR?: Prisma.ReportLabelWhereInput[];
 		NOT?: Prisma.ReportLabelWhereInput | Prisma.ReportLabelWhereInput[];
+		name?: Prisma.StringFilter<"ReportLabel"> | string;
+		groupCode?: Prisma.StringFilter<"ReportLabel"> | string;
+		displayOrder?: Prisma.IntFilter<"ReportLabel"> | number;
 		reports?: Prisma.ReportLabelRelationListRelationFilter;
 	},
-	"id" | "name"
+	"id" | "code" | "groupCode_name"
 >;
 
 export type ReportLabelOrderByWithAggregationInput = {
 	id?: Prisma.SortOrder;
+	code?: Prisma.SortOrder;
 	name?: Prisma.SortOrder;
+	groupCode?: Prisma.SortOrder;
+	displayOrder?: Prisma.SortOrder;
 	_count?: Prisma.ReportLabelCountOrderByAggregateInput;
 	_avg?: Prisma.ReportLabelAvgOrderByAggregateInput;
 	_max?: Prisma.ReportLabelMaxOrderByAggregateInput;
@@ -236,66 +274,106 @@ export type ReportLabelScalarWhereWithAggregatesInput = {
 		| Prisma.ReportLabelScalarWhereWithAggregatesInput
 		| Prisma.ReportLabelScalarWhereWithAggregatesInput[];
 	id?: Prisma.IntWithAggregatesFilter<"ReportLabel"> | number;
+	code?: Prisma.StringWithAggregatesFilter<"ReportLabel"> | string;
 	name?: Prisma.StringWithAggregatesFilter<"ReportLabel"> | string;
+	groupCode?: Prisma.StringWithAggregatesFilter<"ReportLabel"> | string;
+	displayOrder?: Prisma.IntWithAggregatesFilter<"ReportLabel"> | number;
 };
 
 export type ReportLabelCreateInput = {
+	code: string;
 	name: string;
+	groupCode: string;
+	displayOrder?: number;
 	reports?: Prisma.ReportLabelRelationCreateNestedManyWithoutLabelInput;
 };
 
 export type ReportLabelUncheckedCreateInput = {
 	id?: number;
+	code: string;
 	name: string;
+	groupCode: string;
+	displayOrder?: number;
 	reports?: Prisma.ReportLabelRelationUncheckedCreateNestedManyWithoutLabelInput;
 };
 
 export type ReportLabelUpdateInput = {
+	code?: Prisma.StringFieldUpdateOperationsInput | string;
 	name?: Prisma.StringFieldUpdateOperationsInput | string;
+	groupCode?: Prisma.StringFieldUpdateOperationsInput | string;
+	displayOrder?: Prisma.IntFieldUpdateOperationsInput | number;
 	reports?: Prisma.ReportLabelRelationUpdateManyWithoutLabelNestedInput;
 };
 
 export type ReportLabelUncheckedUpdateInput = {
 	id?: Prisma.IntFieldUpdateOperationsInput | number;
+	code?: Prisma.StringFieldUpdateOperationsInput | string;
 	name?: Prisma.StringFieldUpdateOperationsInput | string;
+	groupCode?: Prisma.StringFieldUpdateOperationsInput | string;
+	displayOrder?: Prisma.IntFieldUpdateOperationsInput | number;
 	reports?: Prisma.ReportLabelRelationUncheckedUpdateManyWithoutLabelNestedInput;
 };
 
 export type ReportLabelCreateManyInput = {
 	id?: number;
+	code: string;
 	name: string;
+	groupCode: string;
+	displayOrder?: number;
 };
 
 export type ReportLabelUpdateManyMutationInput = {
+	code?: Prisma.StringFieldUpdateOperationsInput | string;
 	name?: Prisma.StringFieldUpdateOperationsInput | string;
+	groupCode?: Prisma.StringFieldUpdateOperationsInput | string;
+	displayOrder?: Prisma.IntFieldUpdateOperationsInput | number;
 };
 
 export type ReportLabelUncheckedUpdateManyInput = {
 	id?: Prisma.IntFieldUpdateOperationsInput | number;
+	code?: Prisma.StringFieldUpdateOperationsInput | string;
 	name?: Prisma.StringFieldUpdateOperationsInput | string;
+	groupCode?: Prisma.StringFieldUpdateOperationsInput | string;
+	displayOrder?: Prisma.IntFieldUpdateOperationsInput | number;
+};
+
+export type ReportLabelGroupCodeNameCompoundUniqueInput = {
+	groupCode: string;
+	name: string;
 };
 
 export type ReportLabelCountOrderByAggregateInput = {
 	id?: Prisma.SortOrder;
+	code?: Prisma.SortOrder;
 	name?: Prisma.SortOrder;
+	groupCode?: Prisma.SortOrder;
+	displayOrder?: Prisma.SortOrder;
 };
 
 export type ReportLabelAvgOrderByAggregateInput = {
 	id?: Prisma.SortOrder;
+	displayOrder?: Prisma.SortOrder;
 };
 
 export type ReportLabelMaxOrderByAggregateInput = {
 	id?: Prisma.SortOrder;
+	code?: Prisma.SortOrder;
 	name?: Prisma.SortOrder;
+	groupCode?: Prisma.SortOrder;
+	displayOrder?: Prisma.SortOrder;
 };
 
 export type ReportLabelMinOrderByAggregateInput = {
 	id?: Prisma.SortOrder;
+	code?: Prisma.SortOrder;
 	name?: Prisma.SortOrder;
+	groupCode?: Prisma.SortOrder;
+	displayOrder?: Prisma.SortOrder;
 };
 
 export type ReportLabelSumOrderByAggregateInput = {
 	id?: Prisma.SortOrder;
+	displayOrder?: Prisma.SortOrder;
 };
 
 export type ReportLabelScalarRelationFilter = {
@@ -330,12 +408,18 @@ export type ReportLabelUpdateOneRequiredWithoutReportsNestedInput = {
 };
 
 export type ReportLabelCreateWithoutReportsInput = {
+	code: string;
 	name: string;
+	groupCode: string;
+	displayOrder?: number;
 };
 
 export type ReportLabelUncheckedCreateWithoutReportsInput = {
 	id?: number;
+	code: string;
 	name: string;
+	groupCode: string;
+	displayOrder?: number;
 };
 
 export type ReportLabelCreateOrConnectWithoutReportsInput = {
@@ -367,12 +451,18 @@ export type ReportLabelUpdateToOneWithWhereWithoutReportsInput = {
 };
 
 export type ReportLabelUpdateWithoutReportsInput = {
+	code?: Prisma.StringFieldUpdateOperationsInput | string;
 	name?: Prisma.StringFieldUpdateOperationsInput | string;
+	groupCode?: Prisma.StringFieldUpdateOperationsInput | string;
+	displayOrder?: Prisma.IntFieldUpdateOperationsInput | number;
 };
 
 export type ReportLabelUncheckedUpdateWithoutReportsInput = {
 	id?: Prisma.IntFieldUpdateOperationsInput | number;
+	code?: Prisma.StringFieldUpdateOperationsInput | string;
 	name?: Prisma.StringFieldUpdateOperationsInput | string;
+	groupCode?: Prisma.StringFieldUpdateOperationsInput | string;
+	displayOrder?: Prisma.IntFieldUpdateOperationsInput | number;
 };
 
 /**
@@ -419,7 +509,10 @@ export type ReportLabelSelect<
 > = runtime.Types.Extensions.GetSelect<
 	{
 		id?: boolean;
+		code?: boolean;
 		name?: boolean;
+		groupCode?: boolean;
+		displayOrder?: boolean;
 		reports?: boolean | Prisma.ReportLabel$reportsArgs<ExtArgs>;
 		_count?: boolean | Prisma.ReportLabelCountOutputTypeDefaultArgs<ExtArgs>;
 	},
@@ -432,7 +525,10 @@ export type ReportLabelSelectCreateManyAndReturn<
 > = runtime.Types.Extensions.GetSelect<
 	{
 		id?: boolean;
+		code?: boolean;
 		name?: boolean;
+		groupCode?: boolean;
+		displayOrder?: boolean;
 	},
 	ExtArgs["result"]["reportLabel"]
 >;
@@ -443,21 +539,27 @@ export type ReportLabelSelectUpdateManyAndReturn<
 > = runtime.Types.Extensions.GetSelect<
 	{
 		id?: boolean;
+		code?: boolean;
 		name?: boolean;
+		groupCode?: boolean;
+		displayOrder?: boolean;
 	},
 	ExtArgs["result"]["reportLabel"]
 >;
 
 export type ReportLabelSelectScalar = {
 	id?: boolean;
+	code?: boolean;
 	name?: boolean;
+	groupCode?: boolean;
+	displayOrder?: boolean;
 };
 
 export type ReportLabelOmit<
 	ExtArgs extends
 		runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs,
 > = runtime.Types.Extensions.GetOmit<
-	"id" | "name",
+	"id" | "code" | "name" | "groupCode" | "displayOrder",
 	ExtArgs["result"]["reportLabel"]
 >;
 export type ReportLabelInclude<
@@ -487,7 +589,10 @@ export type $ReportLabelPayload<
 	scalars: runtime.Types.Extensions.GetPayloadResult<
 		{
 			id: number;
+			code: string;
 			name: string;
+			groupCode: string;
+			displayOrder: number;
 		},
 		ExtArgs["result"]["reportLabel"]
 	>;
@@ -1095,7 +1200,10 @@ export interface Prisma__ReportLabelClient<
  */
 export interface ReportLabelFieldRefs {
 	readonly id: Prisma.FieldRef<"ReportLabel", "Int">;
+	readonly code: Prisma.FieldRef<"ReportLabel", "String">;
 	readonly name: Prisma.FieldRef<"ReportLabel", "String">;
+	readonly groupCode: Prisma.FieldRef<"ReportLabel", "String">;
+	readonly displayOrder: Prisma.FieldRef<"ReportLabel", "Int">;
 }
 
 // Custom InputTypes
