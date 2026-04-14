@@ -51,7 +51,9 @@ test("groups selected report labels by taxonomy level", () => {
 	assert.deepEqual(
 		grouped.map((group: (typeof grouped)[number]) => ({
 			groupCode: group.groupCode,
-			labelNames: group.labels.map((item: (typeof sampleLabels)[number]) => item.name),
+			labelNames: group.labels.map(
+				(item: (typeof sampleLabels)[number]) => item.name,
+			),
 		})),
 		[
 			{
