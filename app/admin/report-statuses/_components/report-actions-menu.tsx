@@ -282,7 +282,7 @@ export function ReportActionsMenu({
 					<DialogHeader>
 						<DialogTitle>通報内容を更新</DialogTitle>
 						<DialogDescription>
-							4階層ラベル、ステータス、判定結果を更新できます。
+							ラベル、ステータス、判定結果を更新できます。
 						</DialogDescription>
 					</DialogHeader>
 
@@ -429,7 +429,15 @@ export function ReportActionsMenu({
 
 							<div className="space-y-4">
 								<div className="space-y-2">
-									<p className="text-sm font-medium">ジャンル</p>
+									<p className="flex items-center gap-1 text-sm font-medium">
+										<span>ジャンル</span>
+										<span aria-hidden="true" className="text-destructive">
+											*
+										</span>
+										<span className="text-xs font-normal text-muted-foreground">
+											複数選択可
+										</span>
+									</p>
 									<div className="grid gap-2 sm:grid-cols-2">
 										{getReportLabelDefinitions(
 											REPORT_LABEL_GROUP_CODES.GENRE,
@@ -501,6 +509,12 @@ export function ReportActionsMenu({
 										<div key={item.id} className="space-y-2">
 											<label className="text-sm font-medium" htmlFor={item.id}>
 												{item.label}
+												<span
+													aria-hidden="true"
+													className="ml-1 text-destructive"
+												>
+													*
+												</span>
 											</label>
 											<NativeSelect
 												id={item.id}
