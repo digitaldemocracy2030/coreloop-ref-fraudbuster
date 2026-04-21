@@ -1,14 +1,12 @@
 "use client";
 
-import { CheckCircle2, Circle, MessageSquare, Trash2 } from "lucide-react";
-import * as React from "react";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import { CheckCircle2, Circle, Eye, MessageSquare, Trash2 } from "lucide-react";
+import * as React from "react";
+import { toast } from "sonner";
 
 import { AdminShell } from "@/app/admin/_components/admin-shell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,6 +18,8 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -27,6 +27,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import {
 	Table,
 	TableBody,
@@ -158,14 +166,14 @@ export default function AdminInquiriesPage() {
 						</div>
 					) : (
 						<div className="rounded-md border">
-							<Table>
+							<Table className="table-fixed">
 								<TableHeader>
 									<TableRow>
-										<TableHead className="w-[100px]">状況</TableHead>
-										<TableHead className="w-[180px]">日時</TableHead>
+										<TableHead className="w-[72px]">状況</TableHead>
+										<TableHead className="w-[132px]">日時</TableHead>
 										<TableHead className="w-[180px]">お名前 / メール</TableHead>
 										<TableHead>件名 / 内容</TableHead>
-										<TableHead className="text-right">操作</TableHead>
+										<TableHead className="w-[116px] text-right">操作</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -193,39 +201,124 @@ export default function AdminInquiriesPage() {
 													{ locale: ja },
 												)}
 											</TableCell>
-											<TableCell>
-												<div className="font-medium">{inquiry.name}</div>
-												<div className="text-xs text-muted-foreground">
+											<TableCell className="min-w-0">
+												<div className="truncate font-medium">
+													{inquiry.name}
+												</div>
+												<div className="truncate text-xs text-muted-foreground">
 													{inquiry.email}
 												</div>
 											</TableCell>
-											<TableCell>
-												<div className="font-medium mb-1">
+											<TableCell className="min-w-0 whitespace-normal">
+												<div className="mb-1 truncate font-medium">
 													{inquiry.subject || "(件名なし)"}
 												</div>
-												<div className="text-sm text-balance line-clamp-2 whitespace-pre-wrap">
+												<div className="line-clamp-1 text-sm text-muted-foreground">
 													{inquiry.message}
 												</div>
 											</TableCell>
 											<TableCell className="text-right">
-												<div className="flex justify-end gap-2">
+												<div className="flex justify-end gap-1">
+													<Dialog>
+														<DialogTrigger asChild>
+															<Button
+																variant="outline"
+																size="icon-sm"
+																aria-label="詳細を表示"
+																title="詳細を表示"
+															>
+																<Eye className="h-4 w-4" />
+															</Button>
+														</DialogTrigger>
+														<DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+															<DialogHeader>
+																<DialogTitle>お問い合わせ詳細</DialogTitle>
+																<DialogDescription>
+																	受信したお問い合わせの内容を確認できます。
+																</DialogDescription>
+															</DialogHeader>
+															<div className="space-y-5">
+																<div className="grid gap-4 rounded-md border bg-muted/30 p-4 sm:grid-cols-2">
+																	<div>
+																		<div className="text-xs font-medium text-muted-foreground">
+																			日時
+																		</div>
+																		<div className="mt-1 text-sm">
+																			{format(
+																				new Date(inquiry.createdAt),
+																				"yyyy/MM/dd HH:mm",
+																				{ locale: ja },
+																			)}
+																		</div>
+																	</div>
+																	<div>
+																		<div className="text-xs font-medium text-muted-foreground">
+																			状況
+																		</div>
+																		<div className="mt-1">
+																			{inquiry.isRead ? (
+																				<Badge
+																					variant="outline"
+																					className="text-muted-foreground"
+																				>
+																					既読
+																				</Badge>
+																			) : (
+																				<Badge variant="default">未読</Badge>
+																			)}
+																		</div>
+																	</div>
+																	<div>
+																		<div className="text-xs font-medium text-muted-foreground">
+																			お名前
+																		</div>
+																		<div className="mt-1 break-words text-sm">
+																			{inquiry.name}
+																		</div>
+																	</div>
+																	<div>
+																		<div className="text-xs font-medium text-muted-foreground">
+																			メール
+																		</div>
+																		<div className="mt-1 break-all text-sm">
+																			{inquiry.email}
+																		</div>
+																	</div>
+																</div>
+																<div>
+																	<div className="text-xs font-medium text-muted-foreground">
+																		件名
+																	</div>
+																	<div className="mt-1 break-words text-sm font-medium">
+																		{inquiry.subject || "(件名なし)"}
+																	</div>
+																</div>
+																<div>
+																	<div className="text-xs font-medium text-muted-foreground">
+																		内容
+																	</div>
+																	<div className="mt-2 max-h-[50dvh] overflow-y-auto rounded-md border bg-background p-4 text-sm leading-6 whitespace-pre-wrap break-words">
+																		{inquiry.message}
+																	</div>
+																</div>
+															</div>
+														</DialogContent>
+													</Dialog>
 													<Button
 														variant="ghost"
-														size="sm"
+														size="icon-sm"
 														onClick={() =>
 															toggleReadStatus(inquiry.id, inquiry.isRead)
 														}
+														aria-label={
+															inquiry.isRead ? "未読にする" : "既読にする"
+														}
+														title={inquiry.isRead ? "未読にする" : "既読にする"}
 													>
 														{inquiry.isRead ? (
-															<>
-																<Circle className="mr-2 h-4 w-4" />
-																未読にする
-															</>
+															<Circle className="h-4 w-4" />
 														) : (
-															<>
-																<CheckCircle2 className="mr-2 h-4 w-4" />
-																既読にする
-															</>
+															<CheckCircle2 className="h-4 w-4" />
 														)}
 													</Button>
 													{inquiry.isRead ? (
@@ -233,11 +326,12 @@ export default function AdminInquiriesPage() {
 															<AlertDialogTrigger asChild>
 																<Button
 																	variant="destructive"
-																	size="sm"
+																	size="icon-sm"
 																	disabled={deletingInquiryId === inquiry.id}
+																	aria-label="削除"
+																	title="削除"
 																>
-																	<Trash2 className="mr-2 h-4 w-4" />
-																	削除
+																	<Trash2 className="h-4 w-4" />
 																</Button>
 															</AlertDialogTrigger>
 															<AlertDialogContent size="sm">
