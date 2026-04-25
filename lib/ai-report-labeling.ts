@@ -30,7 +30,6 @@ export const REPORT_LABELING_PROMPT_FILE = "prompts/report-labeling.md";
 
 const REPORT_LABELING_ADVISORY_LOCK_NAMESPACE = 5_141_415;
 const REPORT_LABELING_ADVISORY_LOCK_KEY = 1;
-const DEFAULT_TRANSACTION_TIMEOUT_MS = 120_000;
 const MAX_FAILURES_IN_RESPONSE = 20;
 
 type ReportLabelingPrismaClient = Pick<
@@ -476,150 +475,160 @@ export async function runAiReportLabelingJob({
 	const promptText = prompt ?? (await readPromptFile());
 	const labelOptions = buildReportLabelingPromptContext("").trim();
 
-	return prisma.$transaction(
-		async (tx) => {
-			const lockRows = await tx.$queryRaw<{ locked: boolean }[]>`
-				SELECT pg_try_advisory_xact_lock(
-					${REPORT_LABELING_ADVISORY_LOCK_NAMESPACE},
-					${REPORT_LABELING_ADVISORY_LOCK_KEY}
-				) AS locked
-			`;
-			if (!lockRows[0]?.locked) {
-				return {
-					skipped: true,
-					skipReason: "already_running",
-					candidateCount: 0,
-					processedCount: 0,
-					updatedCount: 0,
-					failedCount: 0,
-					updatedReportIds: [],
-					failures: [],
-				};
+	const selection = await prisma.$transaction(async (tx) => {
+		const lockRows = await tx.$queryRaw<{ locked: boolean }[]>`
+			SELECT pg_try_advisory_xact_lock(
+				${REPORT_LABELING_ADVISORY_LOCK_NAMESPACE},
+				${REPORT_LABELING_ADVISORY_LOCK_KEY}
+			) AS locked
+		`;
+		if (!lockRows[0]?.locked) {
+			return null;
+		}
+
+		const [reports, labelMaster] = await Promise.all([
+			tx.report.findMany({
+				where: buildAiReportLabelingTargetWhere(),
+				orderBy: { createdAt: "asc" },
+				take: clampAiReportLabelingBatchSize(batchSize),
+				select: {
+					id: true,
+					title: true,
+					url: true,
+					description: true,
+					images: {
+						select: {
+							id: true,
+							imageUrl: true,
+						},
+						orderBy: { displayOrder: "asc" },
+					},
+				},
+			}),
+			tx.reportLabel.findMany({
+				where: {
+					code: {
+						in: REPORT_LABEL_DEFINITIONS.map((label) => label.code),
+					},
+				},
+				select: {
+					id: true,
+					code: true,
+					name: true,
+					groupCode: true,
+					displayOrder: true,
+				},
+			}),
+		]);
+
+		return { reports, labelMaster };
+	});
+
+	if (!selection) {
+		return {
+			skipped: true,
+			skipReason: "already_running",
+			candidateCount: 0,
+			processedCount: 0,
+			updatedCount: 0,
+			failedCount: 0,
+			updatedReportIds: [],
+			failures: [],
+		};
+	}
+
+	const result: AiReportLabelingJobResult = {
+		skipped: false,
+		skipReason: null,
+		candidateCount: selection.reports.length,
+		processedCount: 0,
+		updatedCount: 0,
+		failedCount: 0,
+		updatedReportIds: [],
+		failures: [],
+	};
+
+	for (const report of selection.reports) {
+		result.processedCount += 1;
+
+		try {
+			const images = await resolveUsableImageInputs(report);
+			if (images.length === 0) {
+				throw new Error("No usable report images were found");
 			}
 
-			const [reports, labelMaster] = await Promise.all([
-				tx.report.findMany({
-					where: buildAiReportLabelingTargetWhere(),
-					orderBy: { createdAt: "asc" },
-					take: clampAiReportLabelingBatchSize(batchSize),
-					select: {
-						id: true,
-						title: true,
-						url: true,
-						description: true,
-						images: {
-							select: {
-								id: true,
-								imageUrl: true,
-							},
-							orderBy: { displayOrder: "asc" },
-						},
-					},
-				}),
-				tx.reportLabel.findMany({
-					where: {
-						code: {
-							in: REPORT_LABEL_DEFINITIONS.map((label) => label.code),
-						},
-					},
-					select: {
-						id: true,
-						code: true,
-						name: true,
-						groupCode: true,
-						displayOrder: true,
-					},
-				}),
-			]);
-
-			const result: AiReportLabelingJobResult = {
-				skipped: false,
-				skipReason: null,
-				candidateCount: reports.length,
-				processedCount: 0,
-				updatedCount: 0,
-				failedCount: 0,
-				updatedReportIds: [],
-				failures: [],
-			};
-
-			for (const report of reports) {
-				result.processedCount += 1;
-
-				try {
-					const images = await resolveUsableImageInputs(report);
-					if (images.length === 0) {
-						throw new Error("No usable report images were found");
-					}
-
-					const output = await classifier({
-						report,
-						images,
-						prompt: promptText,
-						labelOptions,
-					});
-					const update = buildAiReportLabelingUpdate({
-						output,
-						labelMaster,
-					});
-					const lockReportRows = await tx.$queryRaw<{ id: string }[]>`
-						SELECT id
-						FROM reports
-						WHERE id = ${report.id}
-							AND NOT EXISTS (
-								SELECT 1
-								FROM report_label_relations
-								WHERE report_id = ${report.id}
-							)
-						FOR UPDATE
-					`;
-					if (lockReportRows.length === 0) {
-						throw new Error("Report already has labels");
-					}
-
-					await tx.report.update({
-						where: { id: report.id },
-						data: {
-							recommendedVerdict: update.recommendedVerdict,
-							riskScore: update.riskScore,
-							reportLabels: {
-								create: update.nextLabelRecords.map((label) => ({
-									label: {
-										connect: {
-											id: label.id,
-										},
-									},
-								})),
-							},
-							timelines: {
-								create: {
-									actionLabel: "AIラベル付け",
-									description: buildTimelineDescription({
-										labelNames: update.nextLabelNames,
-										confidence: output.confidence,
-										rationale: output.rationale,
-									}),
-								},
-							},
-							updatedAt: new Date(),
-						},
-					});
-
-					result.updatedCount += 1;
-					result.updatedReportIds.push(report.id);
-				} catch (error) {
-					result.failedCount += 1;
-					if (result.failures.length < MAX_FAILURES_IN_RESPONSE) {
-						result.failures.push({
-							reportId: report.id,
-							reason: sanitizeFailureReason(error),
-						});
-					}
+			const output = await classifier({
+				report,
+				images,
+				prompt: promptText,
+				labelOptions,
+			});
+			const update = buildAiReportLabelingUpdate({
+				output,
+				labelMaster: selection.labelMaster,
+			});
+			const updated = await prisma.$transaction(async (tx) => {
+				const lockReportRows = await tx.$queryRaw<{ id: string }[]>`
+					SELECT id
+					FROM reports
+					WHERE id = ${report.id}
+						AND NOT EXISTS (
+							SELECT 1
+							FROM report_label_relations
+							WHERE report_id = ${report.id}
+						)
+					FOR UPDATE
+				`;
+				if (lockReportRows.length === 0) {
+					return false;
 				}
+
+				await tx.report.update({
+					where: { id: report.id },
+					data: {
+						recommendedVerdict: update.recommendedVerdict,
+						riskScore: update.riskScore,
+						reportLabels: {
+							create: update.nextLabelRecords.map((label) => ({
+								label: {
+									connect: {
+										id: label.id,
+									},
+								},
+							})),
+						},
+						timelines: {
+							create: {
+								actionLabel: "AIラベル付け",
+								description: buildTimelineDescription({
+									labelNames: update.nextLabelNames,
+									confidence: output.confidence,
+									rationale: output.rationale,
+								}),
+							},
+						},
+						updatedAt: new Date(),
+					},
+				});
+
+				return true;
+			});
+			if (!updated) {
+				throw new Error("Report already has labels");
 			}
 
-			return result;
-		},
-		{ timeout: DEFAULT_TRANSACTION_TIMEOUT_MS },
-	);
+			result.updatedCount += 1;
+			result.updatedReportIds.push(report.id);
+		} catch (error) {
+			result.failedCount += 1;
+			if (result.failures.length < MAX_FAILURES_IN_RESPONSE) {
+				result.failures.push({
+					reportId: report.id,
+					reason: sanitizeFailureReason(error),
+				});
+			}
+		}
+	}
+
+	return result;
 }
