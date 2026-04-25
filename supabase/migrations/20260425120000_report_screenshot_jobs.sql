@@ -15,7 +15,7 @@ BEGIN
 END $$;
 
 CREATE TABLE IF NOT EXISTS report_screenshot_jobs (
-	id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 	report_id VARCHAR(64) NOT NULL UNIQUE REFERENCES reports(id) ON DELETE CASCADE,
 	url TEXT NOT NULL,
 	status "ReportScreenshotJobStatus" NOT NULL DEFAULT 'QUEUED',
