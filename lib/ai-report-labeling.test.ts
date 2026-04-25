@@ -69,13 +69,13 @@ test("parses positive batch size env values with a safe default", () => {
 	assert.equal(parsePositiveIntegerEnv("-1", 20), 20);
 	assert.equal(parsePositiveIntegerEnv("abc", 20), 20);
 	assert.equal(parsePositiveIntegerEnv(undefined, 20), 20);
-	assert.equal(clampAiReportLabelingBatchSize(100), 20);
+	assert.equal(clampAiReportLabelingBatchSize(100), 5);
 	assert.equal(clampAiReportLabelingBatchSize(0), 1);
 
 	const previousValue = process.env.AI_LABELING_BATCH_SIZE;
 	process.env.AI_LABELING_BATCH_SIZE = "100";
 	try {
-		assert.equal(getAiReportLabelingBatchSize(), 20);
+		assert.equal(getAiReportLabelingBatchSize(), 5);
 	} finally {
 		if (previousValue === undefined) {
 			delete process.env.AI_LABELING_BATCH_SIZE;

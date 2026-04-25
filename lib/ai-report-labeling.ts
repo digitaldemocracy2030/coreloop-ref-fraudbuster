@@ -23,8 +23,8 @@ import {
 	getRecommendedVerdict,
 } from "./report-recommendation.ts";
 
-export const DEFAULT_AI_LABELING_BATCH_SIZE = 20;
-export const MAX_AI_LABELING_BATCH_SIZE = 20;
+export const DEFAULT_AI_LABELING_BATCH_SIZE = 5;
+export const MAX_AI_LABELING_BATCH_SIZE = 5;
 export const DEFAULT_GEMINI_LABELING_MODEL = "gemini-2.5-flash";
 export const REPORT_LABELING_PROMPT_FILE = "prompts/report-labeling.md";
 
