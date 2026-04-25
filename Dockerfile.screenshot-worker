@@ -1,0 +1,29 @@
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY prisma.config.ts ./
+COPY prisma ./prisma
+RUN pnpm prisma generate
+
+RUN mkdir -p scripts lib
+COPY scripts/report-screenshot-worker.ts ./scripts/report-screenshot-worker.ts
+COPY lib/prisma.ts ./lib/prisma.ts
+COPY lib/report-image-sanitizer.ts ./lib/report-image-sanitizer.ts
+COPY lib/report-image-storage.ts ./lib/report-image-storage.ts
+COPY lib/report-image-upload.ts ./lib/report-image-upload.ts
+COPY lib/report-screenshot-capture.ts ./lib/report-screenshot-capture.ts
+COPY lib/report-screenshot-jobs.ts ./lib/report-screenshot-jobs.ts
+COPY lib/report-screenshot-storage.ts ./lib/report-screenshot-storage.ts
+COPY lib/report-screenshot-worker.ts ./lib/report-screenshot-worker.ts
+COPY lib/report-url-safety.ts ./lib/report-url-safety.ts
+COPY lib/site-url.ts ./lib/site-url.ts
+
+USER pwuser
+
+CMD ["pnpm", "worker:screenshots"]

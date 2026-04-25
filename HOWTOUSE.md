@@ -41,6 +41,10 @@ supabase db reset
   - `SUPABASE_URL`（または `NEXT_PUBLIC_SUPABASE_URL`）
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SUPABASE_REPORT_SCREENSHOT_BUCKET`（省略時は `report-screenshots`）
+- 通報URLの自動スクリーンショット取得 worker を動かす場合に任意設定
+  - `REPORT_SCREENSHOT_WORKER_POLL_MS`（省略時は `5000`）
+  - `REPORT_SCREENSHOT_MAX_ATTEMPTS`（省略時は `3`）
+  - `REPORT_SCREENSHOT_NAVIGATION_TIMEOUT_MS`（省略時は `15000`）
 
 例（ローカル開発）:
 
@@ -60,7 +64,21 @@ TURNSTILE_SECRET_KEY=<Cloudflare Turnstile Secret Key>
 pnpm dev
 ```
 
-6. ブラウザで開く
+6. 通報URLの自動スクリーンショット worker を起動（任意）
+
+```bash
+pnpm worker:screenshots
+```
+
+1件だけ処理して終了する場合:
+
+```bash
+pnpm worker:screenshots:once
+```
+
+worker は Playwright Chromium で通報URLを開くため、Vercel/Next.js 本体とは別の隔離されたプロセスまたはコンテナで実行してください。
+
+7. ブラウザで開く
 
 - `http://localhost:3000`
 
