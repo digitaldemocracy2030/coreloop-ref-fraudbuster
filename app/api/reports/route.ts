@@ -32,6 +32,7 @@ import {
 	isReportVerdictCode,
 	REPORT_STATUS_CODES,
 } from "@/lib/report-metadata";
+import { createReportScreenshotJob } from "@/lib/report-screenshot-jobs";
 import { mirrorReportPreviewThumbnail } from "@/lib/report-thumbnail-ingest";
 import type {
 	ReportSortOrder,
@@ -596,6 +597,12 @@ export async function POST(request: NextRequest) {
 					actionLabel: "通報受領",
 					description: "システムによる自動受付完了",
 				},
+			});
+
+			await createReportScreenshotJob({
+				tx,
+				reportId: createdReport.id,
+				url,
 			});
 
 			return createdReport;

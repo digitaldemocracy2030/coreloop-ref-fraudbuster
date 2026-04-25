@@ -1,6 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { PrismaClient } from "../app/generated/prisma/client";
+import { PrismaClient } from "../app/generated/prisma/client.ts";
 
 const DEFAULT_DATABASE_URL =
 	"postgresql://postgres:postgres@127.0.0.1:54322/postgres";
